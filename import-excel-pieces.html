@@ -507,9 +507,22 @@
 		const firstSheet = workbook.Sheets[workbook.SheetNames[0]];
 		excelData = XLSX.utils.sheet_to_json(firstSheet);
 
-		// Vérifier que des données ont été lues
-		if (!excelData || excelData.length === 0) {
-		  showToast("Le fichier Excel ne contient aucune donnée valide.");
+		// Mettre à jour les noms des colonnes requises
+		const requiredColumns = [
+		  "numero_loc",    // au lieu de "Numéro"
+		  "nom_local",     // au lieu de "Nom"
+		  "niveau",        // au lieu de "Étage"
+		  "typologie_pi", // au lieu de "Typologie"
+		  "surface",       // au lieu de "Surface (m²)"
+		  "service_occi",  // au lieu de "Service occupant"
+		  "code_batime"    // au lieu de "Code bâtiment" (corrigez aussi cette faute de frappe dans votre fichier si possible)
+		];
+
+		const missingColumns = requiredColumns.filter(col => !excelData[0] || !(col in excelData[0]));
+
+		if (missingColumns.length > 0) {
+		  showToast(`Colonnes manquantes dans le fichier : ${missingColumns.join(", ")}.`);
+		  excelData = [];
 		  return;
 		}
 
@@ -529,28 +542,18 @@
 		return;
 	  }
 
-	  // Vérifier que les colonnes requises existent dans la première ligne
-	  const requiredColumns = ["Numéro", "Nom", "Étage", "Typologie", "Surface (m²)", "Service occupant", "Code bâtiment"];
-	  const firstRow = excelData[0];
-	  const missingColumns = requiredColumns.filter(col => !(col in firstRow));
-
-	  if (missingColumns.length > 0) {
-		showToast(`Colonnes manquantes dans le fichier : ${missingColumns.join(", ")}.`);
-		return;
-	  }
-
-	  // Afficher les données
+	  // Afficher les données avec les noms de colonnes du fichier
 	  excelData.slice(0, 10).forEach(row => {
 		const tr = document.createElement("tr");
 		tr.innerHTML = `
-		  <td>${row["Numéro"] || ""}</td>
-		  <td>${row["Nom"] || ""}</td>
-		  <td>${row["Étage"] || ""}</td>
-		  <td>${row["Typologie"] || ""}</td>
-		  <td>${row["Surface (m²)"] || ""}</td>
-		  <td>${row["Service occupant"] || ""}</td>
-		  <td>${row["Nb occupants"] || ""}</td>
-		  <td>${row["Nature opérationnelle"] || ""}</td>
+		  <td>${row["numero_loc"] || ""}</td>
+		  <td>${row["nom_local"] || ""}</td>
+		  <td>${row["niveau"] || ""}</td>
+		  <td>${row["typologie_pi"] || ""}</td>
+		  <td>${row["surface"] || ""}</td>
+		  <td>${row["service_occi"] || ""}</td>
+		  <td>${row["nb_occupan"] || ""}</td>
+		  <td>${row["nature_oper"] || ""}</td>
 		`;
 		previewBody.appendChild(tr);
 	  });
@@ -572,10 +575,10 @@
 		const unknownBuildings = new Set();
 
 		for (const row of excelData) {
-		  // Vérifier si le bâtiment existe
-		  const buildingCode = row["Code bâtiment"];
+		  // Utiliser le nom exact de la colonne pour le code bâtiment
+		  const buildingCode = row["code_batime"];
 		  if (!buildingCode) {
-			showToast(`La colonne "Code bâtiment" est manquante ou vide pour certaines lignes.`);
+			showToast(`La colonne "code_batime" est manquante ou vide pour certaines lignes.`);
 			continue;
 		  }
 
@@ -585,30 +588,30 @@
 			continue;
 		  }
 
-		  // Trouver le service et la typologie
-		  const service = services.find(s => s[CONFIG.services.nom] === row["Service occupant"]);
-		  const typologie = typologies.find(t => t[CONFIG.typologie.label] === row["Typologie"]);
+		  // Trouver le service et la typologie avec les nouveaux noms de colonnes
+		  const service = services.find(s => s[CONFIG.services.nom] === row["service_occi"]);
+		  const typologie = typologies.find(t => t[CONFIG.typologie.label] === row["typologie_pi"]);
 
 		  let opValue = null;
-		  if (row["Nature opérationnelle"] === "Oui") opValue = true;
-		  if (row["Nature opérationnelle"] === "Non") opValue = false;
+		  if (row["nature_oper"] === "Oui") opValue = true;
+		  if (row["nature_oper"] === "Non") opValue = false;
 
 		  // Ajouter l'action pour cette pièce
 		  actions.push(["AddRecord", CONFIG.tables.pieces, null, {
 			[p.batimentRef]: building.id,
-			[p.numero]: row["Numéro"] || "",
-			[p.nom]: row["Nom"] || "",
-			[p.niveau]: row["Étage"] || "",
+			[p.numero]: row["numero_loc"] || "",
+			[p.nom]: row["nom_local"] || "",
+			[p.niveau]: row["niveau"] || "",
 			[p.typologie]: typologie ? typologie.id : null,
-			[p.surface]: parseFloat(row["Surface (m²)"]) || 0,
+			[p.surface]: parseFloat(row["surface"]) || 0,
 			[p.serviceRef]: service ? service.id : null,
-			[p.nbOccupant]: row["Nb occupants"] ? Number(row["Nb occupants"]) : null,
+			[p.nbOccupant]: row["nb_occupan"] ? Number(row["nb_occupan"]) : null,
 			[p.natureOperationnelle]: opValue,
-			[p.sousService]: row["Sous-service"] || "",
-			[p.nbPdt]: row["Nb places de travail"] ? Number(row["Nb places de travail"]) : null,
-			[p.nbResident]: row["Nb résidents"] ? Number(row["Nb résidents"]) : null,
-			[p.numCat]: row["Numéro de catégorie"] || "",
-			[p.pourcentageResident]: row["% résidents"] ? Number(row["% résidents"]) : null,
+			[p.sousService]: row["sous_servic"] || "",
+			[p.nbPdt]: row["nb_pdt"] ? Number(row["nb_pdt"]) : null,
+			[p.nbResident]: row["nb_resident"] ? Number(row["nb_resident"]) : null,
+			[p.numCat]: row["num_cat"] || "",
+			[p.pourcentageResident]: row["pourcent_resi"] ? Number(row["pourcent_resi"]) : null,
 		  }]);
 		}
 
