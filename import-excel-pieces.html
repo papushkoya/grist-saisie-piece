@@ -499,7 +499,7 @@
     });
 
     // Lire le fichier Excel
-	 function readExcelFile(file) {
+	function readExcelFile(file) {
 	  const reader = new FileReader();
 	  reader.onload = (e) => {
 		const data = new Uint8Array(e.target.result);
@@ -507,13 +507,9 @@
 		const firstSheet = workbook.Sheets[workbook.SheetNames[0]];
 		excelData = XLSX.utils.sheet_to_json(firstSheet);
 
-		// Vérifier que les colonnes requises existent
-		const requiredColumns = ["Numéro", "Nom", "Étage", "Typologie", "Surface (m²)", "Service occupant", "Code bâtiment"];
-		const missingColumns = requiredColumns.filter(col => !excelData[0] || !(col in excelData[0]));
-
-		if (missingColumns.length > 0) {
-		  showToast(`Colonnes manquantes dans le fichier : ${missingColumns.join(", ")}.`);
-		  excelData = [];
+		// Vérifier que des données ont été lues
+		if (!excelData || excelData.length === 0) {
+		  showToast("Le fichier Excel ne contient aucune donnée valide.");
 		  return;
 		}
 
@@ -527,10 +523,23 @@
 	function previewData() {
 	  const previewBody = document.getElementById("preview-body");
 	  previewBody.innerHTML = "";
-	  if (excelData.length === 0) {
+
+	  if (!excelData || excelData.length === 0) {
 		showToast("Aucune donnée valide trouvée dans le fichier.");
 		return;
 	  }
+
+	  // Vérifier que les colonnes requises existent dans la première ligne
+	  const requiredColumns = ["Numéro", "Nom", "Étage", "Typologie", "Surface (m²)", "Service occupant", "Code bâtiment"];
+	  const firstRow = excelData[0];
+	  const missingColumns = requiredColumns.filter(col => !(col in firstRow));
+
+	  if (missingColumns.length > 0) {
+		showToast(`Colonnes manquantes dans le fichier : ${missingColumns.join(", ")}.`);
+		return;
+	  }
+
+	  // Afficher les données
 	  excelData.slice(0, 10).forEach(row => {
 		const tr = document.createElement("tr");
 		tr.innerHTML = `
@@ -545,13 +554,14 @@
 		`;
 		previewBody.appendChild(tr);
 	  });
+
 	  document.getElementById("preview-section").style.display = "block";
 	  document.getElementById("import-actions").style.display = "block";
 	}
 
     // Importer les données
-		document.getElementById("btn-import").addEventListener("click", async () => {
-	  if (!excelData.length) {
+	document.getElementById("btn-import").addEventListener("click", async () => {
+	  if (!excelData || excelData.length === 0) {
 		showToast("Aucune donnée à importer.");
 		return;
 	  }
@@ -559,16 +569,20 @@
 	  try {
 		const p = CONFIG.pieces;
 		const actions = [];
-		const unknownBuildings = new Set(); // Pour suivre les bâtiments inconnus
+		const unknownBuildings = new Set();
 
 		for (const row of excelData) {
 		  // Vérifier si le bâtiment existe
-		  const buildingCode = row["Code bâtiment"]; // Assurez-vous que cette colonne existe dans votre fichier Excel
-		  const building = buildings.find(b => b[CONFIG.inventaire.code] === buildingCode);
+		  const buildingCode = row["Code bâtiment"];
+		  if (!buildingCode) {
+			showToast(`La colonne "Code bâtiment" est manquante ou vide pour certaines lignes.`);
+			continue;
+		  }
 
+		  const building = buildings.find(b => b[CONFIG.inventaire.code] === buildingCode);
 		  if (!building) {
 			unknownBuildings.add(buildingCode);
-			continue; // Ignorer cette ligne si le bâtiment n'existe pas
+			continue;
 		  }
 
 		  // Trouver le service et la typologie
@@ -581,7 +595,7 @@
 
 		  // Ajouter l'action pour cette pièce
 		  actions.push(["AddRecord", CONFIG.tables.pieces, null, {
-			[p.batimentRef]: building.id, // Utiliser l'ID du bâtiment trouvé
+			[p.batimentRef]: building.id,
 			[p.numero]: row["Numéro"] || "",
 			[p.nom]: row["Nom"] || "",
 			[p.niveau]: row["Étage"] || "",
