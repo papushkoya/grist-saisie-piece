@@ -1,0 +1,840 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Saisie de pièces</title>
+<script src="https://docs.getgrist.com/grist-plugin-api.js"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@500;600&display=swap" rel="stylesheet">
+
+<style>
+  :root{
+    --bg: #EEF1F0;
+    --ink: #16232B;
+    --ink-soft: #5E6C72;
+    --navy: #16232B;
+    --line: #DADFE0;
+    --card: #FFFFFF;
+    --accent: #E07B2E;
+    --teal: #2F7D6B;
+    --teal-soft: #E5F1EE;
+    --danger: #C0503D;
+    --danger-soft: #F7E9E6;
+    --radius: 10px;
+    --font-display: 'IBM Plex Sans', sans-serif;
+    --font-mono: 'IBM Plex Mono', monospace;
+  }
+  * { box-sizing: border-box; }
+  html, body { height:100%; margin:0; }
+  body{
+    font-family: var(--font-display);
+    background: var(--bg);
+    color: var(--ink);
+  }
+  ::selection{ background: var(--accent); color:#fff; }
+
+  #wrap{
+    max-width: 880px;
+    margin: 0 auto;
+    padding: 28px 20px 60px;
+  }
+
+  #card{
+    background: var(--card);
+    border: 1px solid var(--line);
+    border-radius: 14px;
+    overflow: hidden;
+    box-shadow: 0 10px 30px rgba(22,35,43,0.06);
+  }
+
+  #head{
+    background: var(--navy);
+    color: #fff;
+    padding: 20px 28px;
+    display:flex;
+    align-items:baseline;
+    justify-content:space-between;
+  }
+  #head h1{ margin:0; font-size:19px; font-weight:600; letter-spacing:0.01em; }
+  #head .sub{ font-family: var(--font-mono); font-size:12px; color: rgba(255,255,255,0.55); }
+
+  /* ---------------- SELECTEUR BATIMENT ---------------- */
+  #building-block{
+    padding: 22px 28px;
+    border-bottom: 1px solid var(--line);
+  }
+  .label{
+    font-size: 11.5px;
+    font-weight:600;
+    text-transform:uppercase;
+    letter-spacing:0.05em;
+    color: var(--ink-soft);
+    margin-bottom:8px;
+    display:block;
+  }
+  #building-search-wrap{ position:relative; max-width: 460px; }
+  #building-search{
+    width:100%;
+    padding: 11px 14px;
+    border-radius: 8px;
+    border: 1.5px solid var(--line);
+    font-size: 14.5px;
+    font-family: var(--font-display);
+    outline:none;
+  }
+  #building-search:focus{ border-color: var(--accent); }
+  #building-suggestions{
+    position:absolute;
+    top: calc(100% + 4px);
+    left:0; right:0;
+    background:#fff;
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    box-shadow: 0 10px 24px rgba(22,35,43,0.12);
+    max-height: 220px;
+    overflow-y:auto;
+    display:none;
+    z-index: 20;
+  }
+  #building-suggestions.open{ display:block; }
+  .sugg-row{
+    padding: 9px 14px;
+    cursor:pointer;
+    border-bottom: 1px solid var(--line);
+  }
+  .sugg-row:last-child{ border-bottom:none; }
+  .sugg-row:hover{ background: var(--bg); }
+  .sugg-code{ font-family: var(--font-mono); font-size:11px; color: var(--accent); }
+  .sugg-name{ font-size: 13.5px; }
+
+  #building-selected{
+    display:none;
+    margin-top: 12px;
+    align-items:center;
+    justify-content:space-between;
+    background: var(--teal-soft);
+    border-radius: 8px;
+    padding: 10px 14px;
+  }
+  #building-selected .info{ font-size:13.5px; line-height:1.5; }
+  #building-selected .info b{ font-family: var(--font-mono); color: var(--teal); }
+  #building-selected button{
+    background:none; border:none; color: var(--ink-soft);
+    font-size: 12.5px; text-decoration:underline; cursor:pointer;
+  }
+
+  #building-notfound{
+    display:none;
+    margin-top: 12px;
+    font-size: 13.5px;
+    color: var(--ink-soft);
+  }
+  #building-notfound button{
+    margin-left: 6px;
+    background: var(--accent);
+    color:#fff;
+    border:none;
+    padding: 6px 12px;
+    border-radius: 6px;
+    font-size: 12.5px;
+    cursor:pointer;
+    font-weight:600;
+  }
+
+  #new-building-form{
+    display:none;
+    margin-top: 14px;
+    padding: 14px;
+    background: var(--bg);
+    border-radius: 8px;
+  }
+  #new-building-form .grid{
+    display:grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+  }
+  #new-building-form .full{ grid-column: 1 / -1; }
+
+  /* ---------------- FORMULAIRE PIECE ---------------- */
+  #form-block{
+    padding: 22px 28px;
+    border-bottom: 1px solid var(--line);
+    opacity: 0.4;
+    pointer-events: none;
+    transition: opacity 0.15s ease;
+  }
+  #form-block.active{ opacity:1; pointer-events:auto; }
+
+  #form-mode-label{
+    font-family: var(--font-mono);
+    font-size: 11px;
+    color: var(--accent);
+    text-transform:uppercase;
+    letter-spacing:0.05em;
+    margin-bottom: 12px;
+  }
+
+  .toolbar{
+    display:flex;
+    gap:8px;
+    margin-bottom: 18px;
+    flex-wrap:wrap;
+  }
+  .tbtn{
+    padding: 8px 14px;
+    border-radius: 7px;
+    border: 1.5px solid var(--line);
+    background:#fff;
+    font-size: 13px;
+    font-weight:600;
+    cursor:pointer;
+    color: var(--ink);
+  }
+  .tbtn:hover{ border-color: var(--accent); }
+  .tbtn.primary{ background: var(--accent); border-color: var(--accent); color:#fff; }
+  .tbtn.danger{ border-color: var(--danger); color: var(--danger); }
+  .tbtn.danger:hover{ background: var(--danger-soft); }
+  .tbtn:disabled{ opacity:0.4; cursor:not-allowed; }
+
+  .field-row{
+    display:grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 14px;
+    margin-bottom: 14px;
+  }
+  .field-row.two{ grid-template-columns: 1fr 1fr; }
+  .field-row.one{ grid-template-columns: 1fr; }
+  .field label{
+    display:block;
+    font-size: 11.5px;
+    font-weight:600;
+    color: var(--ink-soft);
+    text-transform:uppercase;
+    letter-spacing:0.04em;
+    margin-bottom: 6px;
+  }
+  .field input, .field select{
+    width:100%;
+    padding: 9px 11px;
+    border-radius: 7px;
+    border: 1px solid var(--line);
+    font-family: var(--font-display);
+    font-size: 13.5px;
+    outline:none;
+  }
+  .field input:focus, .field select:focus{ border-color: var(--accent); }
+
+  .bool-row{
+    display:flex;
+    align-items:center;
+    gap: 22px;
+    margin: 6px 0 18px;
+  }
+  .bool-row > span{
+    font-size: 12.5px;
+    font-weight:600;
+    color: var(--ink-soft);
+    text-transform:uppercase;
+    letter-spacing:0.04em;
+  }
+  .bool-opt{
+    display:flex;
+    align-items:center;
+    gap: 6px;
+    cursor:pointer;
+    font-size: 13.5px;
+  }
+  .bool-opt input{ width:16px; height:16px; accent-color: var(--accent); }
+
+  #more-toggle{
+    background:none; border:none;
+    color: var(--teal);
+    font-size: 12.5px;
+    font-weight:600;
+    cursor:pointer;
+    padding: 0;
+    margin-bottom: 14px;
+  }
+  #more-fields{ display:none; }
+  #more-fields.open{ display:block; }
+
+  #form-actions{
+    display:flex;
+    gap:10px;
+    margin-top: 6px;
+  }
+  .btn-save{
+    background: var(--teal); color:#fff; border:none;
+    padding: 10px 20px; border-radius: 8px; font-size:14px; font-weight:600; cursor:pointer;
+  }
+  .btn-reset{
+    background: var(--bg); border:none; color: var(--ink);
+    padding: 10px 20px; border-radius: 8px; font-size:14px; font-weight:600; cursor:pointer;
+  }
+
+  /* ---------------- TABLEAU PIECES ---------------- */
+  #table-block{ padding: 22px 28px 30px; }
+  #table-block .label{ margin-bottom: 12px; }
+  table{ width:100%; border-collapse: collapse; font-size: 13px; }
+  thead th{
+    text-align:left;
+    font-size: 10.5px;
+    text-transform:uppercase;
+    letter-spacing:0.04em;
+    color: var(--ink-soft);
+    padding: 8px 10px;
+    border-bottom: 1.5px solid var(--line);
+  }
+  tbody td{
+    padding: 9px 10px;
+    border-bottom: 1px solid var(--line);
+  }
+  tbody tr{ cursor:pointer; }
+  tbody tr:hover{ background: var(--bg); }
+  tbody tr.selected{ background: var(--teal-soft); }
+  td.num{ font-family: var(--font-mono); text-align:right; }
+  .op-yes{ color: var(--teal); font-weight:600; }
+  .op-no{ color: var(--ink-soft); }
+  #empty-table{ padding: 20px 0; text-align:center; color: var(--ink-soft); font-size:13px; }
+
+  #toast{
+    position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%);
+    background: var(--navy); color:#fff; padding: 11px 20px; border-radius: 8px;
+    font-size: 13.5px; box-shadow: 0 8px 20px rgba(0,0,0,0.2); display:none; z-index:60;
+  }
+</style>
+</head>
+<body>
+
+<div id="wrap">
+  <div id="card">
+    <div id="head">
+      <h1>Saisie de pièces</h1>
+      <span class="sub" id="head-count"></span>
+    </div>
+
+    <!-- SELECTEUR BATIMENT -->
+    <div id="building-block">
+      <label class="label" for="building-search">Sélectionner un bâtiment</label>
+      <div id="building-search-wrap">
+        <input id="building-search" type="text" placeholder="Rechercher par code ou nom de bâtiment…" autocomplete="off" />
+        <div id="building-suggestions"></div>
+      </div>
+
+      <div id="building-selected">
+        <div class="info">
+          <b id="bs-code"></b> — <span id="bs-nom"></span><br/>
+          <span id="bs-adresse"></span>
+        </div>
+        <button id="bs-change">Changer de bâtiment</button>
+      </div>
+
+      <div id="building-notfound">
+        Aucun bâtiment trouvé pour « <span id="nf-query"></span> ».
+        <button id="nf-create">+ Créer ce bâtiment</button>
+      </div>
+
+      <div id="new-building-form">
+        <div class="grid">
+          <div class="field"><label>Code bâtiment</label><input id="nb-code" type="text" /></div>
+          <div class="field"><label>Nom du bâtiment</label><input id="nb-nom" type="text" /></div>
+          <div class="field"><label>Adresse</label><input id="nb-adresse" type="text" /></div>
+          <div class="field"><label>Ville</label><input id="nb-ville" type="text" /></div>
+          <div class="field"><label>Code postal</label><input id="nb-cp" type="text" /></div>
+        </div>
+        <div style="margin-top:12px; display:flex; gap:8px;">
+          <button class="tbtn primary" id="nb-save">Enregistrer le bâtiment</button>
+          <button class="tbtn" id="nb-cancel">Annuler</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- FORMULAIRE PIECE -->
+    <div id="form-block">
+      <div id="form-mode-label">Sélectionnez un bâtiment pour commencer</div>
+
+      <div class="toolbar">
+        <button class="tbtn primary" id="btn-add">+ Ajouter pièce</button>
+        <button class="tbtn" id="btn-edit" disabled>✎ Modifier pièce</button>
+        <button class="tbtn danger" id="btn-delete" disabled>− Supprimer pièce</button>
+      </div>
+
+      <div class="field-row">
+        <div class="field"><label>Numéro</label><input id="f-numero" type="text" /></div>
+        <div class="field"><label>Nom</label><input id="f-nom" type="text" /></div>
+        <div class="field"><label>Étage</label><input id="f-niveau" type="text" /></div>
+      </div>
+
+      <div class="field-row one">
+        <div class="field">
+          <label>Typologie</label>
+          <input id="f-typologie" list="typologie-list" type="text" />
+          <datalist id="typologie-list"></datalist>
+        </div>
+      </div>
+
+      <div class="field-row">
+        <div class="field"><label>Surface (m²)</label><input id="f-surface" type="number" step="0.1" min="0" /></div>
+        <div class="field">
+          <label>Service occupant</label>
+          <select id="f-service"><option value="">— Sélectionner —</option></select>
+        </div>
+        <div class="field"><label>Nb occupants</label><input id="f-nboccupant" type="number" step="1" min="0" /></div>
+      </div>
+
+      <div class="bool-row">
+        <span>Nature opérationnelle</span>
+        <label class="bool-opt"><input type="checkbox" id="f-op-oui" /> Oui</label>
+        <label class="bool-opt"><input type="checkbox" id="f-op-non" /> Non</label>
+      </div>
+
+      <button id="more-toggle">+ Champs complémentaires</button>
+      <div id="more-fields">
+        <div class="field-row">
+          <div class="field"><label>Sous-service</label><input id="f-sousservice" type="text" /></div>
+          <div class="field"><label>Nb places de travail</label><input id="f-nbpdt" type="number" step="1" min="0" /></div>
+          <div class="field"><label>Nb résidents</label><input id="f-nbresident" type="number" step="1" min="0" /></div>
+        </div>
+        <div class="field-row">
+          <div class="field"><label>Numéro de catégorie</label><input id="f-numcat" type="text" /></div>
+          <div class="field"><label>Classe typologie</label><input id="f-classtypo" type="text" /></div>
+          <div class="field"><label>% résidents</label><input id="f-pctresident" type="number" step="0.1" min="0" max="100" /></div>
+        </div>
+      </div>
+
+      <div id="form-actions">
+        <button class="btn-save" id="btn-save">Enregistrer</button>
+        <button class="btn-reset" id="btn-reset">Réinitialiser</button>
+      </div>
+    </div>
+
+    <!-- TABLEAU PIECES -->
+    <div id="table-block">
+      <label class="label">Pièces du bâtiment</label>
+      <table>
+        <thead>
+          <tr>
+            <th>N°</th><th>Nom</th><th>Étage</th><th>Typo</th>
+            <th style="text-align:right;">Surface</th><th>Service</th>
+            <th style="text-align:right;">Nb occ.</th><th>Opé.</th>
+          </tr>
+        </thead>
+        <tbody id="rows-body"></tbody>
+      </table>
+      <div id="empty-table" style="display:none;">Sélectionnez un bâtiment pour voir ses pièces.</div>
+    </div>
+  </div>
+</div>
+
+<div id="toast"></div>
+
+<script>
+/* ============================================================
+   CONFIGURATION — noms de tables / colonnes réels de ton document
+   ============================================================ */
+const CONFIG = {
+  tables: {
+    inventaire: "Inventaire",
+    pieces: "PIECES",
+    services: "LIST_SERVICE",
+  },
+  inventaire: {
+    id: "id",
+    code: "code_batiment",
+    nom: "nom_batiment",
+    adresse: "adresse",
+    ville: "ville",
+    codePostal: "code_postal",
+    // champs calculés (lecture seule dans ce widget) :
+    sdp: "SDP", sub: "SUB", subRatio: "SUB_ratio", sba: "SBA",
+    subSpecifique: "SUB_specifique", autres: "autres",
+  },
+  pieces: {
+    id: "id",
+    batimentRef: "code_batiment",     // Reference -> Inventaire
+    niveau: "niveau",
+    numero: "numero_local",
+    nom: "nom_local",
+    typologie: "typologie_pie",
+    serviceRef: "service_occupant",   // Reference -> LIST_SERVICE
+    sousService: "sous_service",      // ⚠️ à vérifier : si le vrai id contient un tiret,
+                                       // remplace par le nom exact vu dans Raw Data
+    surface: "surface",
+    nbOccupant: "nb_occupant",
+    nbPdt: "nb_pdt",
+    natureOperationnelle: "nature_operationnelle", // stocké en booléen (true/false)
+    numCat: "num_cat",
+    classTypologie: "class_typologie",
+    nbResident: "nb_resident",
+    pourcentageResident: "pourcentage_resident",
+  },
+  services: {
+    id: "id",
+    nom: "nom_service",
+  },
+};
+
+/* ============================================================
+   ETAT
+   ============================================================ */
+let buildings = [];
+let allPieces = [];
+let services = [];
+let selectedBuilding = null;   // objet bâtiment sélectionné
+let selectedRowId = null;      // ligne pièce sélectionnée dans le tableau
+let formMode = null;           // "create" | "edit" | null
+
+function toRows(table) {
+  if (!table || !table.id) return [];
+  const rows = [];
+  for (let i = 0; i < table.id.length; i++) {
+    const row = { id: table.id[i] };
+    for (const key of Object.keys(table)) {
+      if (key === "id") continue;
+      row[key] = table[key][i];
+    }
+    rows.push(row);
+  }
+  return rows;
+}
+function refId(v) { return v && typeof v === "object" ? v.rowId : v; }
+function showToast(msg) {
+  const t = document.getElementById("toast");
+  t.textContent = msg;
+  t.style.display = "block";
+  clearTimeout(showToast._t);
+  showToast._t = setTimeout(() => (t.style.display = "none"), 2200);
+}
+function fmtSurface(v){ const n = Number(v)||0; return n.toLocaleString("fr-FR",{maximumFractionDigits:1}) + " m²"; }
+
+/* ============================================================
+   CHARGEMENT
+   ============================================================ */
+async function loadAll() {
+  const [inv, pcs, srv] = await Promise.all([
+    grist.docApi.fetchTable(CONFIG.tables.inventaire),
+    grist.docApi.fetchTable(CONFIG.tables.pieces),
+    grist.docApi.fetchTable(CONFIG.tables.services),
+  ]);
+  buildings = toRows(inv);
+  allPieces = toRows(pcs);
+  services = toRows(srv);
+  populateServiceSelect();
+  populateTypologieList();
+  if (selectedBuilding) {
+    const fresh = buildings.find(b => b.id === selectedBuilding.id);
+    if (fresh) selectedBuilding = fresh;
+    renderRoomsTable();
+  }
+}
+
+function populateServiceSelect() {
+  const sel = document.getElementById("f-service");
+  const current = sel.value;
+  sel.innerHTML = `<option value="">— Sélectionner —</option>` +
+    services.map(s => `<option value="${s.id}">${s[CONFIG.services.nom] || ""}</option>`).join("");
+  sel.value = current;
+}
+function populateTypologieList() {
+  const dl = document.getElementById("typologie-list");
+  const values = [...new Set(allPieces.map(p => p[CONFIG.pieces.typologie]).filter(Boolean))];
+  dl.innerHTML = values.map(v => `<option value="${v}"></option>`).join("");
+}
+
+/* ============================================================
+   RECHERCHE BATIMENT
+   ============================================================ */
+const searchInput = document.getElementById("building-search");
+const suggBox = document.getElementById("building-suggestions");
+
+searchInput.addEventListener("input", () => {
+  const q = searchInput.value.trim().toLowerCase();
+  document.getElementById("building-notfound").style.display = "none";
+  document.getElementById("new-building-form").style.display = "none";
+  if (!q) { suggBox.classList.remove("open"); return; }
+
+  const c = CONFIG.inventaire;
+  const matches = buildings.filter(b =>
+    String(b[c.code] || "").toLowerCase().includes(q) ||
+    String(b[c.nom] || "").toLowerCase().includes(q)
+  ).slice(0, 8);
+
+  if (matches.length) {
+    suggBox.innerHTML = matches.map(b => `
+      <div class="sugg-row" data-id="${b.id}">
+        <div class="sugg-code">${b[c.code] || ""}</div>
+        <div class="sugg-name">${b[c.nom] || "Sans nom"}</div>
+      </div>`).join("");
+    suggBox.classList.add("open");
+    suggBox.querySelectorAll(".sugg-row").forEach(el => {
+      el.addEventListener("click", () => selectBuilding(Number(el.dataset.id)));
+    });
+  } else {
+    suggBox.classList.remove("open");
+    document.getElementById("nf-query").textContent = searchInput.value.trim();
+    document.getElementById("building-notfound").style.display = "block";
+  }
+});
+
+document.getElementById("nf-create").addEventListener("click", () => {
+  document.getElementById("nb-code").value = searchInput.value.trim();
+  document.getElementById("new-building-form").style.display = "block";
+});
+document.getElementById("nb-cancel").addEventListener("click", () => {
+  document.getElementById("new-building-form").style.display = "none";
+});
+document.getElementById("nb-save").addEventListener("click", async () => {
+  const c = CONFIG.inventaire;
+  const code = document.getElementById("nb-code").value.trim();
+  const nom = document.getElementById("nb-nom").value.trim();
+  if (!code || !nom) { showToast("Code et nom du bâtiment sont requis."); return; }
+  try {
+    const res = await grist.docApi.applyUserActions([
+      ["AddRecord", CONFIG.tables.inventaire, null, {
+        [c.code]: code,
+        [c.nom]: nom,
+        [c.adresse]: document.getElementById("nb-adresse").value.trim(),
+        [c.ville]: document.getElementById("nb-ville").value.trim(),
+        [c.codePostal]: document.getElementById("nb-cp").value.trim(),
+      }],
+    ]);
+    await loadAll();
+    const newId = res.retValues[0];
+    selectBuilding(newId);
+    document.getElementById("new-building-form").style.display = "none";
+    showToast("Bâtiment créé.");
+  } catch (err) {
+    console.error(err);
+    showToast("Erreur lors de la création du bâtiment.");
+  }
+});
+
+function selectBuilding(id) {
+  const c = CONFIG.inventaire;
+  selectedBuilding = buildings.find(b => b.id === id);
+  suggBox.classList.remove("open");
+  document.getElementById("building-notfound").style.display = "none";
+  searchInput.value = "";
+
+  document.getElementById("building-selected").style.display = "flex";
+  document.getElementById("bs-code").textContent = selectedBuilding[c.code] || "";
+  document.getElementById("bs-nom").textContent = selectedBuilding[c.nom] || "";
+  document.getElementById("bs-adresse").textContent =
+    [selectedBuilding[c.adresse], selectedBuilding[c.codePostal], selectedBuilding[c.ville]].filter(Boolean).join(", ");
+
+  document.getElementById("form-block").classList.add("active");
+  document.getElementById("form-mode-label").textContent = "Cliquez sur « + Ajouter pièce » ou sélectionnez une pièce ci-dessous";
+  resetForm(false);
+  renderRoomsTable();
+}
+document.getElementById("bs-change").addEventListener("click", () => {
+  selectedBuilding = null;
+  selectedRowId = null;
+  document.getElementById("building-selected").style.display = "none";
+  document.getElementById("form-block").classList.remove("active");
+  document.getElementById("form-mode-label").textContent = "Sélectionnez un bâtiment pour commencer";
+  document.getElementById("rows-body").innerHTML = "";
+  document.getElementById("empty-table").style.display = "block";
+  document.getElementById("empty-table").textContent = "Sélectionnez un bâtiment pour voir ses pièces.";
+  document.getElementById("head-count").textContent = "";
+});
+
+/* ============================================================
+   TABLEAU DES PIECES
+   ============================================================ */
+function renderRoomsTable() {
+  const p = CONFIG.pieces;
+  const rows = allPieces.filter(r => refId(r[p.batimentRef]) === selectedBuilding.id);
+  const tbody = document.getElementById("rows-body");
+  const empty = document.getElementById("empty-table");
+
+  document.getElementById("head-count").textContent =
+    rows.length ? `${rows.length} pièce(s) · ${fmtSurface(rows.reduce((s,r)=>s+(Number(r[p.surface])||0),0))}` : "";
+
+  if (!rows.length) {
+    tbody.innerHTML = "";
+    empty.style.display = "block";
+    empty.textContent = "Aucune pièce saisie pour ce bâtiment pour l'instant.";
+    return;
+  }
+  empty.style.display = "none";
+
+  tbody.innerHTML = rows.map(r => {
+    const service = services.find(s => s.id === refId(r[p.serviceRef]));
+    const isOp = r[p.natureOperationnelle] === true;
+    const selected = r.id === selectedRowId ? "selected" : "";
+    return `
+      <tr class="${selected}" data-id="${r.id}">
+        <td>${r[p.numero] || ""}</td>
+        <td>${r[p.nom] || ""}</td>
+        <td>${r[p.niveau] || ""}</td>
+        <td>${r[p.typologie] || ""}</td>
+        <td class="num">${fmtSurface(r[p.surface])}</td>
+        <td>${service ? service[CONFIG.services.nom] : ""}</td>
+        <td class="num">${r[p.nbOccupant] ?? ""}</td>
+        <td class="${isOp ? "op-yes" : "op-no"}">${isOp ? "Oui" : "Non"}</td>
+      </tr>`;
+  }).join("");
+
+  tbody.querySelectorAll("tr").forEach(tr => {
+    tr.addEventListener("click", () => {
+      selectedRowId = Number(tr.dataset.id);
+      document.getElementById("btn-edit").disabled = false;
+      document.getElementById("btn-delete").disabled = false;
+      renderRoomsTable();
+    });
+  });
+}
+
+/* ============================================================
+   FORMULAIRE
+   ============================================================ */
+function resetForm(keepMode) {
+  document.getElementById("f-numero").value = "";
+  document.getElementById("f-nom").value = "";
+  document.getElementById("f-niveau").value = "";
+  document.getElementById("f-typologie").value = "";
+  document.getElementById("f-surface").value = "";
+  document.getElementById("f-service").value = "";
+  document.getElementById("f-nboccupant").value = "";
+  document.getElementById("f-op-oui").checked = false;
+  document.getElementById("f-op-non").checked = false;
+  document.getElementById("f-sousservice").value = "";
+  document.getElementById("f-nbpdt").value = "";
+  document.getElementById("f-nbresident").value = "";
+  document.getElementById("f-numcat").value = "";
+  document.getElementById("f-classtypo").value = "";
+  document.getElementById("f-pctresident").value = "";
+  if (!keepMode) { formMode = null; }
+}
+
+document.getElementById("btn-add").addEventListener("click", () => {
+  if (!selectedBuilding) return;
+  selectedRowId = null;
+  formMode = "create";
+  resetForm(true);
+  document.getElementById("btn-edit").disabled = true;
+  document.getElementById("btn-delete").disabled = true;
+  document.getElementById("form-mode-label").textContent = "Nouvelle pièce";
+  renderRoomsTable();
+  document.getElementById("f-numero").focus();
+});
+
+document.getElementById("btn-edit").addEventListener("click", () => {
+  if (!selectedRowId) return;
+  const p = CONFIG.pieces;
+  const r = allPieces.find(x => x.id === selectedRowId);
+  formMode = "edit";
+  document.getElementById("f-numero").value = r[p.numero] || "";
+  document.getElementById("f-nom").value = r[p.nom] || "";
+  document.getElementById("f-niveau").value = r[p.niveau] || "";
+  document.getElementById("f-typologie").value = r[p.typologie] || "";
+  document.getElementById("f-surface").value = r[p.surface] ?? "";
+  document.getElementById("f-service").value = refId(r[p.serviceRef]) || "";
+  document.getElementById("f-nboccupant").value = r[p.nbOccupant] ?? "";
+  document.getElementById("f-op-oui").checked = r[p.natureOperationnelle] === true;
+  document.getElementById("f-op-non").checked = r[p.natureOperationnelle] === false;
+  document.getElementById("f-sousservice").value = r[p.sousService] || "";
+  document.getElementById("f-nbpdt").value = r[p.nbPdt] ?? "";
+  document.getElementById("f-nbresident").value = r[p.nbResident] ?? "";
+  document.getElementById("f-numcat").value = r[p.numCat] || "";
+  document.getElementById("f-classtypo").value = r[p.classTypologie] || "";
+  document.getElementById("f-pctresident").value = r[p.pourcentageResident] ?? "";
+  document.getElementById("form-mode-label").textContent = `Modification — ${r[p.nom] || "pièce sélectionnée"}`;
+});
+
+document.getElementById("btn-delete").addEventListener("click", async () => {
+  if (!selectedRowId) return;
+  if (!confirm("Supprimer définitivement cette pièce ?")) return;
+  try {
+    await grist.docApi.applyUserActions([["RemoveRecord", CONFIG.tables.pieces, selectedRowId]]);
+    selectedRowId = null;
+    document.getElementById("btn-edit").disabled = true;
+    document.getElementById("btn-delete").disabled = true;
+    resetForm(false);
+    document.getElementById("form-mode-label").textContent = "Pièce supprimée";
+    await loadAll();
+    showToast("Pièce supprimée.");
+  } catch (err) { console.error(err); showToast("Erreur lors de la suppression."); }
+});
+
+document.getElementById("f-op-oui").addEventListener("change", (e) => {
+  if (e.target.checked) document.getElementById("f-op-non").checked = false;
+});
+document.getElementById("f-op-non").addEventListener("change", (e) => {
+  if (e.target.checked) document.getElementById("f-op-oui").checked = false;
+});
+
+document.getElementById("more-toggle").addEventListener("click", (e) => {
+  const box = document.getElementById("more-fields");
+  box.classList.toggle("open");
+  e.target.textContent = box.classList.contains("open") ? "− Champs complémentaires" : "+ Champs complémentaires";
+});
+
+document.getElementById("btn-reset").addEventListener("click", () => {
+  if (formMode === "edit" && selectedRowId) {
+    document.getElementById("btn-edit").click();
+  } else {
+    resetForm(true);
+  }
+});
+
+document.getElementById("btn-save").addEventListener("click", async () => {
+  if (!selectedBuilding) return;
+  if (!formMode) { showToast("Cliquez d'abord sur « + Ajouter pièce »."); return; }
+
+  const p = CONFIG.pieces;
+  const nom = document.getElementById("f-nom").value.trim();
+  if (!nom) { showToast("Le nom de la pièce est requis."); return; }
+
+  let opValue = null;
+  if (document.getElementById("f-op-oui").checked) opValue = true;
+  if (document.getElementById("f-op-non").checked) opValue = false;
+
+  const fields = {
+    [p.batimentRef]: selectedBuilding.id,
+    [p.numero]: document.getElementById("f-numero").value.trim(),
+    [p.nom]: nom,
+    [p.niveau]: document.getElementById("f-niveau").value.trim(),
+    [p.typologie]: document.getElementById("f-typologie").value.trim(),
+    [p.surface]: parseFloat(document.getElementById("f-surface").value) || 0,
+    [p.serviceRef]: document.getElementById("f-service").value ? Number(document.getElementById("f-service").value) : null,
+    [p.nbOccupant]: document.getElementById("f-nboccupant").value ? Number(document.getElementById("f-nboccupant").value) : null,
+    [p.natureOperationnelle]: opValue,
+    [p.sousService]: document.getElementById("f-sousservice").value.trim(),
+    [p.nbPdt]: document.getElementById("f-nbpdt").value ? Number(document.getElementById("f-nbpdt").value) : null,
+    [p.nbResident]: document.getElementById("f-nbresident").value ? Number(document.getElementById("f-nbresident").value) : null,
+    [p.numCat]: document.getElementById("f-numcat").value.trim(),
+    [p.classTypologie]: document.getElementById("f-classtypo").value.trim(),
+    [p.pourcentageResident]: document.getElementById("f-pctresident").value ? Number(document.getElementById("f-pctresident").value) : null,
+  };
+
+  try {
+    if (formMode === "edit" && selectedRowId) {
+      await grist.docApi.applyUserActions([["UpdateRecord", CONFIG.tables.pieces, selectedRowId, fields]]);
+      showToast("Pièce mise à jour.");
+    } else {
+      const res = await grist.docApi.applyUserActions([["AddRecord", CONFIG.tables.pieces, null, fields]]);
+      selectedRowId = res.retValues[0];
+      formMode = "edit";
+      showToast("Pièce ajoutée.");
+    }
+    await loadAll();
+    document.getElementById("btn-edit").disabled = false;
+    document.getElementById("btn-delete").disabled = false;
+  } catch (err) {
+    console.error(err);
+    showToast("Erreur : vérifiez les identifiants de colonnes dans CONFIG.");
+  }
+});
+
+/* ============================================================
+   DEMARRAGE
+   ============================================================ */
+grist.ready({ requiredAccess: "full" });
+grist.onRecords(() => loadAll());
+loadAll();
+</script>
+</body>
+</html>
