@@ -716,7 +716,11 @@
             [p.nbPdt]: row["nb_pdt"] ? Number(row["nb_pdt"]) : null,
             [p.natureOperationnelle]: opValue,
             [p.numCat]: row["num_cat"] || "",
-            [p.classTypologie]: null,
+            // class_typologie est une colonne formule dans Grist : elle se calcule
+            // automatiquement et ne peut pas recevoir de valeur écrite directement
+            // (sinon Grist renvoie "Can't save value to formula column").
+            // Si nb_resident / pourcentage_resident sont aussi des colonnes formule
+            // dans votre document, retirez-les de la même façon.
             [p.nbResident]: null,
             [p.pourcentageResident]: null,
           }]);
