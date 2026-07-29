@@ -37,7 +37,7 @@
     }
 
     #wrap {
-      max-width: 880px;
+      max-width: 1400px;
       margin: 0 auto;
       padding: 28px 20px 60px;
     }
@@ -220,24 +220,35 @@
       display: none;
     }
 
-    #preview-table {
+    #preview-table-wrap {
       margin-top: 20px;
+      overflow-x: auto;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+    }
+
+    #preview-table {
       width: 100%;
+      min-width: 1180px;
       border-collapse: collapse;
     }
 
     #preview-table th,
     #preview-table td {
-      padding: 10px;
+      padding: 10px 12px;
       border: 1px solid var(--line);
       text-align: left;
+      white-space: nowrap;
+      font-size: 13px;
     }
 
     #preview-table th {
       background: var(--navy);
       color: #fff;
-      font-size: 12px;
+      font-size: 11.5px;
       text-transform: uppercase;
+      position: sticky;
+      top: 0;
     }
 
     #import-actions {
@@ -311,25 +322,27 @@
 
         <div id="preview-section" style="display: none; margin-top: 20px;">
           <label class="label">Aperçu des données</label>
-          <table id="preview-table">
-            <thead>
-              <tr>
-                <th>Code bâtiment</th>
-                <th>Numéro local</th>
-                <th>Nom local</th>
-                <th>Niveau</th>
-                <th>Typologie</th>
-                <th>Surface (m²)</th>
-                <th>Service occupant</th>
-                <th>Sous-service</th>
-                <th>Nb occupants</th>
-                <th>Nb PDT</th>
-                <th>Nature opérationnelle</th>
-                <th>Numéro CAT</th>
-              </tr>
-            </thead>
-            <tbody id="preview-body"></tbody>
-          </table>
+          <div id="preview-table-wrap">
+            <table id="preview-table">
+              <thead>
+                <tr>
+                  <th>Code bâtiment</th>
+                  <th>Numéro local</th>
+                  <th>Nom local</th>
+                  <th>Niveau</th>
+                  <th>Typologie</th>
+                  <th>Surface (m²)</th>
+                  <th>Service occupant</th>
+                  <th>Sous-service</th>
+                  <th>Nb occupants</th>
+                  <th>Nb PDT</th>
+                  <th>Nature opérationnelle</th>
+                  <th>Numéro CAT</th>
+                </tr>
+              </thead>
+              <tbody id="preview-body"></tbody>
+            </table>
+          </div>
         </div>
 
         <div id="import-actions" style="display: none; margin-top: 20px;">
@@ -415,7 +428,7 @@
       ];
 
       requiredFields.forEach(field => {
-        if (!field.value) {
+        if (field.value === undefined || field.value === null || field.value === "") {
           errors.push(`La colonne "${field.name}" est vide.`);
         }
       });
@@ -544,7 +557,15 @@
         const data = new Uint8Array(e.target.result);
         const workbook = XLSX.read(data, { type: "array" });
         const firstSheet = workbook.Sheets[workbook.SheetNames[0]];
-        excelData = XLSX.utils.sheet_to_json(firstSheet);
+        // defval: "" garantit que chaque ligne possède TOUTES les colonnes de l'en-tête,
+        // même quand une cellule est vide (sinon SheetJS omet purement et simplement la clé,
+        // ce qui faussait ensuite la détection de "colonnes manquantes" ci-dessous).
+        excelData = XLSX.utils.sheet_to_json(firstSheet, { defval: "" });
+
+        if (!excelData.length) {
+          showToast("Le fichier ne contient aucune ligne de données.");
+          return;
+        }
 
         // Colonnes requises dans le fichier Excel
         const requiredColumns = [
@@ -563,15 +584,16 @@
           "num_cat"
         ];
 
-        // Ajouter les colonnes manquantes avec des valeurs vides
-        const firstRow = excelData[0];
-        const missingColumns = requiredColumns.filter(col => !(col in firstRow));
+        // Vérifier les en-têtes réellement présents dans le fichier (pas seulement
+        // dans la première ligne de données, qui peut être trompeuse si une cellule est vide)
+        const headerRow = XLSX.utils.sheet_to_json(firstSheet, { header: 1 })[0] || [];
+        const missingColumns = requiredColumns.filter(col => !headerRow.includes(col));
 
         if (missingColumns.length > 0) {
-          console.warn(`Colonnes manquantes détectées : ${missingColumns.join(", ")}. Elles seront ajoutées avec des valeurs vides.`);
+          console.warn(`En-têtes absents du fichier : ${missingColumns.join(", ")}. Elles seront traitées comme vides.`);
           excelData.forEach(row => {
             missingColumns.forEach(col => {
-              row[col] = "";
+              if (!(col in row)) row[col] = "";
             });
           });
         }
