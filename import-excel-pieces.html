@@ -24,25 +24,32 @@
       --font-display: 'IBM Plex Sans', sans-serif;
       --font-mono: 'IBM Plex Mono', monospace;
     }
-    * { box-sizing: border-box; }
+
+    * {
+      box-sizing: border-box;
+    }
+
     body {
       font-family: var(--font-display);
       background: var(--bg);
       color: var(--ink);
       padding: 20px;
     }
+
     #wrap {
       max-width: 880px;
       margin: 0 auto;
       padding: 28px 20px 60px;
     }
+
     #card {
       background: var(--card);
       border: 1px solid var(--line);
       border-radius: 14px;
       overflow: hidden;
-      box-shadow: 0 10px 30px rgba(22,35,43,0.06);
+      box-shadow: 0 10px 30px rgba(22, 35, 43, 0.06);
     }
+
     #head {
       background: var(--navy);
       color: #fff;
@@ -51,17 +58,26 @@
       align-items: baseline;
       justify-content: space-between;
     }
+
     #head h1 {
       margin: 0;
       font-size: 19px;
       font-weight: 600;
       letter-spacing: 0.01em;
     }
+
     #head .sub {
       font-family: var(--font-mono);
       font-size: 12px;
-      color: rgba(255,255,255,0.55);
+      color: rgba(255, 255, 255, 0.55);
     }
+
+    /* ---------------- SELECTEUR BATIMENT ---------------- */
+    #building-block {
+      padding: 22px 28px;
+      border-bottom: 1px solid var(--line);
+    }
+
     .label {
       font-size: 11.5px;
       font-weight: 600;
@@ -71,6 +87,119 @@
       margin-bottom: 8px;
       display: block;
     }
+
+    #building-search-wrap {
+      position: relative;
+      max-width: 460px;
+    }
+
+    #building-search {
+      width: 100%;
+      padding: 11px 14px;
+      border-radius: 8px;
+      border: 1.5px solid var(--line);
+      font-size: 14.5px;
+      font-family: var(--font-display);
+      outline: none;
+    }
+
+    #building-search:focus {
+      border-color: var(--accent);
+    }
+
+    #building-suggestions {
+      position: absolute;
+      top: calc(100% + 4px);
+      left: 0;
+      right: 0;
+      background: #fff;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      box-shadow: 0 10px 24px rgba(22, 35, 43, 0.12);
+      max-height: 220px;
+      overflow-y: auto;
+      display: none;
+      z-index: 20;
+    }
+
+    #building-suggestions.open {
+      display: block;
+    }
+
+    .sugg-row {
+      padding: 9px 14px;
+      cursor: pointer;
+      border-bottom: 1px solid var(--line);
+    }
+
+    .sugg-row:last-child {
+      border-bottom: none;
+    }
+
+    .sugg-row:hover {
+      background: var(--bg);
+    }
+
+    .sugg-code {
+      font-family: var(--font-mono);
+      font-size: 11px;
+      color: var(--accent);
+    }
+
+    .sugg-name {
+      font-size: 13.5px;
+    }
+
+    #building-selected {
+      display: none;
+      margin-top: 12px;
+      align-items: center;
+      justify-content: space-between;
+      background: var(--teal-soft);
+      border-radius: 8px;
+      padding: 10px 14px;
+    }
+
+    #building-selected .info {
+      font-size: 13.5px;
+      line-height: 1.5;
+    }
+
+    #building-selected .info b {
+      font-family: var(--font-mono);
+      color: var(--teal);
+    }
+
+    #building-selected button {
+      background: none;
+      border: none;
+      color: var(--ink-soft);
+      font-size: 12.5px;
+      text-decoration: underline;
+      cursor: pointer;
+    }
+
+    #building-notfound {
+      display: none;
+      margin-top: 12px;
+      font-size: 13.5px;
+      color: var(--ink-soft);
+    }
+
+    #building-notfound button {
+      margin-left: 6px;
+      background: var(--accent);
+      color: #fff;
+      border: none;
+      padding: 6px 12px;
+      border-radius: 6px;
+      font-size: 12.5px;
+      cursor: pointer;
+      font-weight: 600;
+    }
+
+    /* ---------------- FIN SELECTEUR BATIMENT ---------------- */
+
     #file-upload {
       margin: 20px 0;
       padding: 20px;
@@ -80,30 +209,37 @@
       cursor: pointer;
       background: var(--bg);
     }
+
     #file-upload input[type="file"] {
       display: none;
     }
+
     #preview-table {
       margin-top: 20px;
       width: 100%;
       border-collapse: collapse;
     }
-    #preview-table th, #preview-table td {
+
+    #preview-table th,
+    #preview-table td {
       padding: 10px;
       border: 1px solid var(--line);
       text-align: left;
     }
+
     #preview-table th {
       background: var(--navy);
       color: #fff;
       font-size: 12px;
       text-transform: uppercase;
     }
+
     #import-actions {
       margin-top: 20px;
       display: flex;
       gap: 10px;
     }
+
     .btn {
       padding: 10px 20px;
       border: none;
@@ -111,14 +247,17 @@
       font-weight: 600;
       cursor: pointer;
     }
+
     .btn-primary {
       background: var(--accent);
       color: #fff;
     }
+
     .btn-secondary {
       background: var(--bg);
       color: var(--ink);
     }
+
     #toast {
       position: fixed;
       bottom: 24px;
@@ -129,33 +268,36 @@
       padding: 11px 20px;
       border-radius: 8px;
       font-size: 13.5px;
-      box-shadow: 0 8px 20px rgba(0,0,0,0.2);
+      box-shadow: 0 8px 20px rgba(0, 0, 0, 0.2);
       display: none;
       z-index: 60;
     }
   </style>
 </head>
+
 <body>
   <div id="wrap">
     <div id="card">
       <div id="head">
         <h1>Import de pièces en masse</h1>
       </div>
-      <div style="padding: 22px 28px;">
-        <label class="label">Sélectionner un bâtiment</label>
+      <div id="building-block">
+        <label class="label">SÉLECTIONNER UN BÂTIMENT</label>
         <div id="building-search-wrap">
           <input id="building-search" type="text" placeholder="Rechercher par code ou nom de bâtiment…" autocomplete="off" />
           <div id="building-suggestions"></div>
         </div>
-        <div id="building-selected" style="display: none; margin-top: 12px; padding: 10px; background: var(--teal-soft); border-radius: 8px;">
+        <div id="building-selected">
           <div class="info">
-            <b id="bs-code"></b> — <span id="bs-nom"></span><br/>
+            <b id="bs-code"></b> — <span id="bs-nom"></span><br />
             <span id="bs-adresse"></span>
           </div>
-          <button id="bs-change" style="background: none; border: none; color: var(--ink-soft); cursor: pointer;">Changer de bâtiment</button>
+          <button id="bs-change">Changer</button>
         </div>
+      </div>
 
-        <label class="label" style="margin-top: 20px;">Importer un fichier Excel</label>
+      <div style="padding: 22px 28px;">
+        <label class="label">Importer un fichier Excel</label>
         <div id="file-upload">
           <input type="file" id="file-input" accept=".xlsx, .xls" />
           <p>Glissez-déposez un fichier Excel ou cliquez pour sélectionner</p>
@@ -288,7 +430,7 @@
       const c = CONFIG.inventaire;
       selectedBuilding = buildings.find(b => b.id === id);
       document.getElementById("building-search").value = "";
-      document.getElementById("building-suggestions").style.display = "none";
+      document.getElementById("building-suggestions").classList.remove("open");
 
       document.getElementById("building-selected").style.display = "flex";
       document.getElementById("bs-code").textContent = selectedBuilding[c.code] || "";
@@ -302,7 +444,10 @@
       const q = document.getElementById("building-search").value.trim().toLowerCase();
       const suggBox = document.getElementById("building-suggestions");
       suggBox.innerHTML = "";
-      if (!q) return;
+      if (!q) {
+        suggBox.classList.remove("open");
+        return;
+      }
 
       const c = CONFIG.inventaire;
       const matches = buildings.filter(b =>
@@ -312,15 +457,17 @@
 
       if (matches.length) {
         suggBox.innerHTML = matches.map(b => `
-          <div class="sugg-row" data-id="${b.id}" style="padding: 8px; cursor: pointer; border-bottom: 1px solid var(--line);">
-            <div style="font-family: var(--font-mono); font-size: 11px; color: var(--accent);">${b[c.code] || ""}</div>
-            <div style="font-size: 13.5px;">${b[c.nom] || "Sans nom"}</div>
+          <div class="sugg-row" data-id="${b.id}">
+            <div class="sugg-code">${b[c.code] || ""}</div>
+            <div class="sugg-name">${b[c.nom] || "Sans nom"}</div>
           </div>
         `).join("");
-        suggBox.style.display = "block";
+        suggBox.classList.add("open");
         suggBox.querySelectorAll(".sugg-row").forEach(el => {
           el.addEventListener("click", () => selectBuilding(Number(el.dataset.id)));
         });
+      } else {
+        suggBox.classList.remove("open");
       }
     });
 
@@ -395,11 +542,9 @@
       try {
         const p = CONFIG.pieces;
         const actions = excelData.map(row => {
-          // Trouver l'ID du service et de la typologie
           const service = services.find(s => s[CONFIG.services.nom] === row["Service occupant"]);
           const typologie = typologies.find(t => t[CONFIG.typologie.label] === row["Typologie"]);
 
-          // Déterminer la nature opérationnelle
           let opValue = null;
           if (row["Nature opérationnelle"] === "Oui") opValue = true;
           if (row["Nature opérationnelle"] === "Non") opValue = false;
