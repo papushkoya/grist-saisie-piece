@@ -72,40 +72,46 @@
       color: rgba(255, 255, 255, 0.55);
     }
 
-    /* ---------------- SELECTEUR BATIMENT ---------------- */
-    #building-block {
-      padding: 22px 28px;
-      border-bottom: 1px solid var(--line);
-    }
+	/* ---------------- SELECTEUR BATIMENT ---------------- */
+	#building-block {
+	  padding: 22px 28px;
+	  border-bottom: 1px solid var(--line);
+	}
 
-    .label {
-      font-size: 11.5px;
-      font-weight: 600;
-      text-transform: uppercase;
-      letter-spacing: 0.05em;
-      color: var(--ink-soft);
-      margin-bottom: 8px;
-      display: block;
-    }
+	.label {
+	  font-size: 11.5px;
+	  font-weight: 600;
+	  text-transform: uppercase;
+	  letter-spacing: 0.05em;
+	  color: var(--ink-soft);
+	  margin-bottom: 8px;
+	  display: block;
+	}
 
-    #building-search-wrap {
-      position: relative;
-      max-width: 460px;
-    }
+	#building-search-wrap {
+	  position: relative;
+	  max-width: 460px;
+	}
 
-    #building-search {
-      width: 100%;
-      padding: 11px 14px;
-      border-radius: 8px;
-      border: 1.5px solid var(--line);
-      font-size: 14.5px;
-      font-family: var(--font-display);
-      outline: none;
-    }
+	#building-search {
+	  width: 100%;
+	  padding: 11px 14px;
+	  border-radius: 8px;
+	  border: 1.5px solid var(--line);
+	  font-size: 14.5px;
+	  font-family: var(--font-display);
+	  outline: none;
+	  background: #fff;
+	}
 
-    #building-search:focus {
-      border-color: var(--accent);
-    }
+	#building-search::placeholder {
+	  color: var(--ink-soft);
+	  font-size: 14.5px;
+	}
+
+	#building-search:focus {
+	  border-color: var(--accent);
+	}
 
     #building-suggestions {
       position: absolute;
