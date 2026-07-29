@@ -72,46 +72,46 @@
       color: rgba(255, 255, 255, 0.55);
     }
 
-	/* ---------------- SELECTEUR BATIMENT ---------------- */
-	#building-block {
-	  padding: 22px 28px;
-	  border-bottom: 1px solid var(--line);
-	}
+    /* ---------------- SELECTEUR BATIMENT ---------------- */
+    #building-block {
+      padding: 22px 28px;
+      border-bottom: 1px solid var(--line);
+    }
 
-	.label {
-	  font-size: 11.5px;
-	  font-weight: 600;
-	  text-transform: uppercase;
-	  letter-spacing: 0.05em;
-	  color: var(--ink-soft);
-	  margin-bottom: 8px;
-	  display: block;
-	}
+    .label {
+      font-size: 11.5px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      color: var(--ink-soft);
+      margin-bottom: 8px;
+      display: block;
+    }
 
-	#building-search-wrap {
-	  position: relative;
-	  max-width: 460px;
-	}
+    #building-search-wrap {
+      position: relative;
+      max-width: 460px;
+    }
 
-	#building-search {
-	  width: 100%;
-	  padding: 11px 14px;
-	  border-radius: 8px;
-	  border: 1.5px solid var(--line);
-	  font-size: 14.5px;
-	  font-family: var(--font-display);
-	  outline: none;
-	  background: #fff;
-	}
+    #building-search {
+      width: 100%;
+      padding: 11px 14px;
+      border-radius: 8px;
+      border: 1.5px solid var(--line);
+      font-size: 14.5px;
+      font-family: var(--font-display);
+      outline: none;
+      background: #fff;
+    }
 
-	#building-search::placeholder {
-	  color: var(--ink-soft);
-	  font-size: 14.5px;
-	}
+    #building-search::placeholder {
+      color: var(--ink-soft);
+      font-size: 14.5px;
+    }
 
-	#building-search:focus {
-	  border-color: var(--accent);
-	}
+    #building-search:focus {
+      border-color: var(--accent);
+    }
 
     #building-suggestions {
       position: absolute;
@@ -314,14 +314,18 @@
           <table id="preview-table">
             <thead>
               <tr>
-                <th>Numéro</th>
-                <th>Nom</th>
-                <th>Étage</th>
+                <th>Code bâtiment</th>
+                <th>Numéro local</th>
+                <th>Nom local</th>
+                <th>Niveau</th>
                 <th>Typologie</th>
                 <th>Surface (m²)</th>
                 <th>Service occupant</th>
+                <th>Sous-service</th>
                 <th>Nb occupants</th>
+                <th>Nb PDT</th>
                 <th>Nature opérationnelle</th>
+                <th>Numéro CAT</th>
               </tr>
             </thead>
             <tbody id="preview-body"></tbody>
@@ -357,21 +361,22 @@
         codePostal: "code_postal",
       },
       pieces: {
-        id: "id",
-        batimentRef: "code_batiment",
-        niveau: "niveau",
-        numero: "numero_local",
-        nom: "nom_local",
-        typologie: "typologie_pie",
-        serviceRef: "service_occupant",
-        sousService: "sous_service",
-        surface: "surface",
-        nbOccupant: "nb_occupant",
-        nbPdt: "nb_pdt",
-        natureOperationnelle: "nature_operationnelle",
-        numCat: "num_cat",
-        nbResident: "nb_resident",
-        pourcentageResident: "pourcentage_resident",
+		id: "id_piece",  // Nom de la colonne dans Grist
+		batimentRef: "code_batiment",
+		niveau: "niveau",  // Nom de la colonne dans Grist
+		numero: "numero_local",
+		nom: "nom_local",
+		typologie: "typologie_pie",
+		serviceRef: "service_occupant",
+		sousService: "sous_service",
+		surface: "surface",
+		nbOccupant: "nb_occupant",
+		nbPdt: "nb_pdt",
+		natureOperationnelle: "nature_operationnelle",
+		numCat: "num_cat",
+		classTypologie: "class_typologie",  // Nouvelle colonne dans Grist
+		nbResident: "nb_resident",  // Nouvelle colonne dans Grist
+		pourcentageResident: "pourcentage_resident",  // Nouvelle colonne dans Grist
       },
       services: {
         id: "id",
@@ -507,26 +512,37 @@
 		const firstSheet = workbook.Sheets[workbook.SheetNames[0]];
 		excelData = XLSX.utils.sheet_to_json(firstSheet);
 
-		// Mettre à jour les noms des colonnes requises
+		// Liste de toutes les colonnes requises
 		const requiredColumns = [
-		  "numero_local",    // au lieu de "Numéro"
-		  "nom_local",     // au lieu de "Nom"
-		  "niveau",        // au lieu de "Étage"
-		  "typologie_pie", // au lieu de "Typologie"
-		  "surface",       // au lieu de "Surface (m²)"
-		  "service_occupant",  // au lieu de "Service occupant"
-		  "code_batiment"    // au lieu de "Code bâtiment" 
+		  "code_batiment",
+		  "nom_batiment",
+		  "niveau",
+		  "numero_local",
+		  "nom_local",
+		  "typologie_pie",
+		  "service_occupant",
+		  "sous_service",
+		  "surface",
+		  "nb_occupant",
+		  "nb_pdt",
+		  "nature_operationnelle",
+		  "num_cat"
 		];
 
-		const missingColumns = requiredColumns.filter(col => !excelData[0] || !(col in excelData[0]));
+		// Vérifier si toutes les colonnes sont présentes dans le fichier Excel
+		const firstRow = excelData[0];
+		const missingColumns = requiredColumns.filter(col => !(col in firstRow));
 
+		// Si des colonnes sont manquantes, les ajouter avec des valeurs vides
 		if (missingColumns.length > 0) {
-		  showToast(`Colonnes manquantes dans le fichier : ${missingColumns.join(", ")}.`);
-		  excelData = [];
-		  return;
+		  excelData.forEach(row => {
+			missingColumns.forEach(col => {
+			  row[col] = ""; // Ajouter la colonne manquante avec une valeur vide
+			});
+		  });
+		  console.warn(`Les colonnes suivantes étaient manquantes et ont été ajoutées avec des valeurs vides : ${missingColumns.join(", ")}.`);
 		}
 
-		console.log("Données Excel :", excelData);
 		previewData();
 	  };
 	  reader.readAsArrayBuffer(file);
@@ -542,35 +558,7 @@
 		return;
 	  }
 
-	  // Vérifier que les colonnes requises existent dans la première ligne
-	  const requiredColumns = [
-		"numero_local",
-		"nom_local",
-		"niveau",
-		"typologie_pie",
-		"surface",
-		"service_occupant",
-		"code_batiment"
-	  ];
-
-	  const firstRow = excelData[0];
-	  const missingColumns = requiredColumns.filter(col => !(col in firstRow));
-
-	  if (missingColumns.length > 0) {
-		showToast(`Colonnes manquantes dans le fichier : ${missingColumns.join(", ")}.`);
-		return;
-	  }
-
-	  // Ajouter l'en-tête pour le code_batiment dans le tableau
-	  const tableHeader = document.querySelector("#preview-table thead tr");
-	  if (!document.getElementById("building-code-header")) {
-		const th = document.createElement("th");
-		th.id = "building-code-header";
-		th.textContent = "Code Bâtiment";
-		tableHeader.insertBefore(th, tableHeader.firstChild);
-	  }
-
-	  // Afficher les données avec le code_batiment
+	  // Afficher les 10 premières lignes
 	  excelData.slice(0, 10).forEach(row => {
 		const tr = document.createElement("tr");
 		tr.innerHTML = `
@@ -581,8 +569,11 @@
 		  <td>${row["typologie_pie"] || ""}</td>
 		  <td>${row["surface"] || ""}</td>
 		  <td>${row["service_occupant"] || ""}</td>
+		  <td>${row["sous_service"] || ""}</td>
 		  <td>${row["nb_occupant"] || ""}</td>
+		  <td>${row["nb_pdt"] || ""}</td>
 		  <td>${row["nature_operationnelle"] || ""}</td>
+		  <td>${row["num_cat"] || ""}</td>
 		`;
 		previewBody.appendChild(tr);
 	  });
@@ -602,6 +593,8 @@
 		const p = CONFIG.pieces;
 		const actions = [];
 		const unknownBuildings = new Set();
+		const unknownServices = new Set();
+		const unknownTypologies = new Set();
 
 		for (const row of excelData) {
 		  // Vérifier si le bâtiment existe
@@ -614,12 +607,19 @@
 		  const building = buildings.find(b => b[CONFIG.inventaire.code] === buildingCode);
 		  if (!building) {
 			unknownBuildings.add(buildingCode);
-			continue; // Ignorer cette ligne si le bâtiment n'existe pas
+			continue;
 		  }
 
 		  // Trouver le service et la typologie
 		  const service = services.find(s => s[CONFIG.services.nom] === row["service_occupant"]);
+		  if (!service) {
+			unknownServices.add(row["service_occupant"]);
+		  }
+
 		  const typologie = typologies.find(t => t[CONFIG.typologie.label] === row["typologie_pie"]);
+		  if (!typologie) {
+			unknownTypologies.add(row["typologie_pie"]);
+		  }
 
 		  let opValue = null;
 		  if (row["nature_operationnelle"] === "Oui") opValue = true;
@@ -628,24 +628,38 @@
 		  // Ajouter l'action pour cette pièce
 		  actions.push(["AddRecord", CONFIG.tables.pieces, null, {
 			[p.batimentRef]: building.id,
+			[p.niveau]: row["niveau"] || "",
 			[p.numero]: row["numero_local"] || "",
 			[p.nom]: row["nom_local"] || "",
-			[p.niveau]: row["niveau"] || "",
 			[p.typologie]: typologie ? typologie.id : null,
 			[p.surface]: parseFloat(row["surface"]) || 0,
 			[p.serviceRef]: service ? service.id : null,
-			[p.nbOccupant]: row["nb_occupant"] ? Number(row["nb_occupant"]) : null,
+			[p.sousService]: row["sous_service"] || "", // Valeur vide autorisée
+			[p.nbOccupant]: row["nb_occupant"] ? Number(row["nb_occupant"]) : null, // Valeur vide autorisée
+			[p.nbPdt]: row["nb_pdt"] ? Number(row["nb_pdt"]) : null, // Valeur vide autorisée
 			[p.natureOperationnelle]: opValue,
-			[p.sousService]: row["sous_service"] || "",
-			[p.nbPdt]: row["nb_pdt"] ? Number(row["nb_pdt"]) : null,
-			[p.nbResident]: row["nb_resident"] ? Number(row["nb_resident"]) : null,
 			[p.numCat]: row["num_cat"] || "",
-			[p.pourcentageResident]: row["pourcent_resident"] ? Number(row["pourcent_resident"]) : null,
+			// Colonnes supplémentaires dans Grist
+			[p.classTypologie]: null,
+			[p.nbResident]: null,
+			[p.pourcentageResident]: null,
 		  }]);
 		}
 
+		// Afficher les erreurs si des bâtiments, services ou typologies sont inconnus
+		let errorMessages = [];
 		if (unknownBuildings.size > 0) {
-		  showToast(`Certains bâtiments ne sont pas reconnus : ${Array.from(unknownBuildings).join(", ")}. Les pièces associées n'ont pas été importées.`);
+		  errorMessages.push(`Bâtiments non reconnus : ${Array.from(unknownBuildings).join(", ")}.`);
+		}
+		if (unknownServices.size > 0) {
+		  errorMessages.push(`Services non reconnus : ${Array.from(unknownServices).join(", ")}.`);
+		}
+		if (unknownTypologies.size > 0) {
+		  errorMessages.push(`Typologies non reconnues : ${Array.from(unknownTypologies).join(", ")}.`);
+		}
+
+		if (errorMessages.length > 0) {
+		  showToast(errorMessages.join(" "));
 		}
 
 		if (actions.length > 0) {
