@@ -361,22 +361,22 @@
         codePostal: "code_postal",
       },
       pieces: {
-		id: "id_piece",  // Nom de la colonne dans Grist
-		batimentRef: "code_batiment",
-		niveau: "niveau",  // Nom de la colonne dans Grist
-		numero: "numero_local",
-		nom: "nom_local",
-		typologie: "typologie_pie",
-		serviceRef: "service_occupant",
-		sousService: "sous_service",
-		surface: "surface",
-		nbOccupant: "nb_occupant",
-		nbPdt: "nb_pdt",
-		natureOperationnelle: "nature_operationnelle",
-		numCat: "num_cat",
-		classTypologie: "class_typologie",  // Nouvelle colonne dans Grist
-		nbResident: "nb_resident",  // Nouvelle colonne dans Grist
-		pourcentageResident: "pourcentage_resident",  // Nouvelle colonne dans Grist
+        id: "id_piece",
+        batimentRef: "code_batiment",
+        niveau: "niveaux",
+        numero: "numero_local",
+        nom: "nom_local",
+        typologie: "typologie_pie",
+        serviceRef: "service_occupant",
+        sousService: "sous_service",
+        surface: "surface",
+        nbOccupant: "nb_occupant",
+        nbPdt: "nb_pdt",
+        natureOperationnelle: "nature_operationnelle",
+        numCat: "num_cat",
+        classTypologie: "class_typologie",
+        nbResident: "nb_resident",
+        pourcentageResident: "pourcentage_resident",
       },
       services: {
         id: "id",
@@ -400,25 +400,41 @@
       const toast = document.getElementById("toast");
       toast.textContent = msg;
       toast.style.display = "block";
-      setTimeout(() => toast.style.display = "none", 2200);
+      setTimeout(() => toast.style.display = "none", 3000);
     }
 
-    // Charger les données depuis Grist
-    async function loadAll() {
-      try {
-        const [inv, srv, typ] = await Promise.all([
-          grist.docApi.fetchTable(CONFIG.tables.inventaire),
-          grist.docApi.fetchTable(CONFIG.tables.services),
-          grist.docApi.fetchTable(CONFIG.tables.typologie),
-        ]);
-        buildings = toRows(inv);
-        services = toRows(srv);
-        typologies = toRows(typ);
-        console.log("Bâtiments chargés :", buildings);
-      } catch (err) {
-        console.error("Erreur lors du chargement des données :", err);
-        showToast("Erreur lors du chargement des données.");
+    // Fonction pour valider les données d'une ligne
+    function validateData(row) {
+      const errors = [];
+
+      // Colonnes obligatoires (doivent être présentes et non vides)
+      const requiredFields = [
+        { name: "code_batiment", value: row["code_batiment"] },
+        { name: "numero_local", value: row["numero_local"] },
+        { name: "surface", value: row["surface"] },
+      ];
+
+      requiredFields.forEach(field => {
+        if (!field.value) {
+          errors.push(`La colonne "${field.name}" est vide.`);
+        }
+      });
+
+      // Vérifier que la surface est un nombre valide
+      if (row["surface"] && isNaN(parseFloat(row["surface"]))) {
+        errors.push(`La colonne "surface" doit être un nombre valide.`);
       }
+
+      // Vérifier que nb_occupant et nb_pdt sont des nombres valides (s'ils ne sont pas vides)
+      if (row["nb_occupant"] && row["nb_occupant"] !== "" && isNaN(Number(row["nb_occupant"]))) {
+        errors.push(`La colonne "nb_occupant" doit être un nombre valide.`);
+      }
+
+      if (row["nb_pdt"] && row["nb_pdt"] !== "" && isNaN(Number(row["nb_pdt"]))) {
+        errors.push(`La colonne "nb_pdt" doit être un nombre valide.`);
+      }
+
+      return errors;
     }
 
     // Convertir les données de Grist en tableau d'objets
@@ -434,6 +450,24 @@
         rows.push(row);
       }
       return rows;
+    }
+
+    // Charger les données depuis Grist
+    async function loadAll() {
+      try {
+        const [inv, srv, typ] = await Promise.all([
+          grist.docApi.fetchTable(CONFIG.tables.inventaire),
+          grist.docApi.fetchTable(CONFIG.tables.services),
+          grist.docApi.fetchTable(CONFIG.tables.typologie),
+        ]);
+        buildings = toRows(inv);
+        services = toRows(srv);
+        typologies = toRows(typ);
+        console.log("Données chargées avec succès :", { buildings, services, typologies });
+      } catch (err) {
+        console.error("Erreur lors du chargement des données :", err);
+        showToast("Erreur lors du chargement des données depuis Grist.");
+      }
     }
 
     // Sélectionner un bâtiment
@@ -504,198 +538,204 @@
     });
 
     // Lire le fichier Excel
-	function readExcelFile(file) {
-	  const reader = new FileReader();
-	  reader.onload = (e) => {
-		const data = new Uint8Array(e.target.result);
-		const workbook = XLSX.read(data, { type: "array" });
-		const firstSheet = workbook.Sheets[workbook.SheetNames[0]];
-		excelData = XLSX.utils.sheet_to_json(firstSheet);
+    function readExcelFile(file) {
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        const data = new Uint8Array(e.target.result);
+        const workbook = XLSX.read(data, { type: "array" });
+        const firstSheet = workbook.Sheets[workbook.SheetNames[0]];
+        excelData = XLSX.utils.sheet_to_json(firstSheet);
 
-		// Liste de toutes les colonnes requises
-		const requiredColumns = [
-		  "code_batiment",
-		  "nom_batiment",
-		  "niveau",
-		  "numero_local",
-		  "nom_local",
-		  "typologie_pie",
-		  "service_occupant",
-		  "sous_service",
-		  "surface",
-		  "nb_occupant",
-		  "nb_pdt",
-		  "nature_operationnelle",
-		  "num_cat"
-		];
+        // Colonnes requises dans le fichier Excel
+        const requiredColumns = [
+          "code_batiment",
+          "nom_batiment",
+          "niveau",
+          "numero_local",
+          "nom_local",
+          "typologie_pie",
+          "service_occupant",
+          "sous_service",
+          "surface",
+          "nb_occupant",
+          "nb_pdt",
+          "nature_operationnelle",
+          "num_cat"
+        ];
 
-		// Vérifier si toutes les colonnes sont présentes dans le fichier Excel
-		const firstRow = excelData[0];
-		const missingColumns = requiredColumns.filter(col => !(col in firstRow));
+        // Ajouter les colonnes manquantes avec des valeurs vides
+        const firstRow = excelData[0];
+        const missingColumns = requiredColumns.filter(col => !(col in firstRow));
 
-		// Si des colonnes sont manquantes, les ajouter avec des valeurs vides
-		if (missingColumns.length > 0) {
-		  excelData.forEach(row => {
-			missingColumns.forEach(col => {
-			  row[col] = ""; // Ajouter la colonne manquante avec une valeur vide
-			});
-		  });
-		  console.warn(`Les colonnes suivantes étaient manquantes et ont été ajoutées avec des valeurs vides : ${missingColumns.join(", ")}.`);
-		}
+        if (missingColumns.length > 0) {
+          console.warn(`Colonnes manquantes détectées : ${missingColumns.join(", ")}. Elles seront ajoutées avec des valeurs vides.`);
+          excelData.forEach(row => {
+            missingColumns.forEach(col => {
+              row[col] = "";
+            });
+          });
+        }
 
-		previewData();
-	  };
-	  reader.readAsArrayBuffer(file);
-	}
+        previewData();
+      };
+      reader.readAsArrayBuffer(file);
+    }
 
     // Aperçu des données
-	function previewData() {
-	  const previewBody = document.getElementById("preview-body");
-	  previewBody.innerHTML = "";
+    function previewData() {
+      const previewBody = document.getElementById("preview-body");
+      previewBody.innerHTML = "";
 
-	  if (!excelData || excelData.length === 0) {
-		showToast("Aucune donnée valide trouvée dans le fichier.");
-		return;
-	  }
+      if (!excelData || excelData.length === 0) {
+        showToast("Aucune donnée valide trouvée dans le fichier.");
+        return;
+      }
 
-	  // Afficher les 10 premières lignes
-	  excelData.slice(0, 10).forEach(row => {
-		const tr = document.createElement("tr");
-		tr.innerHTML = `
-		  <td>${row["code_batiment"] || ""}</td>
-		  <td>${row["numero_local"] || ""}</td>
-		  <td>${row["nom_local"] || ""}</td>
-		  <td>${row["niveau"] || ""}</td>
-		  <td>${row["typologie_pie"] || ""}</td>
-		  <td>${row["surface"] || ""}</td>
-		  <td>${row["service_occupant"] || ""}</td>
-		  <td>${row["sous_service"] || ""}</td>
-		  <td>${row["nb_occupant"] || ""}</td>
-		  <td>${row["nb_pdt"] || ""}</td>
-		  <td>${row["nature_operationnelle"] || ""}</td>
-		  <td>${row["num_cat"] || ""}</td>
-		`;
-		previewBody.appendChild(tr);
-	  });
+      // Afficher les 10 premières lignes
+      excelData.slice(0, 10).forEach(row => {
+        const tr = document.createElement("tr");
+        tr.innerHTML = `
+          <td>${row["code_batiment"] || ""}</td>
+          <td>${row["numero_local"] || ""}</td>
+          <td>${row["nom_local"] || ""}</td>
+          <td>${row["niveau"] || ""}</td>
+          <td>${row["typologie_pie"] || ""}</td>
+          <td>${row["surface"] || ""}</td>
+          <td>${row["service_occupant"] || ""}</td>
+          <td>${row["sous_service"] || ""}</td>
+          <td>${row["nb_occupant"] || ""}</td>
+          <td>${row["nb_pdt"] || ""}</td>
+          <td>${row["nature_operationnelle"] || ""}</td>
+          <td>${row["num_cat"] || ""}</td>
+        `;
+        previewBody.appendChild(tr);
+      });
 
-	  document.getElementById("preview-section").style.display = "block";
-	  document.getElementById("import-actions").style.display = "block";
-	}
+      document.getElementById("preview-section").style.display = "block";
+      document.getElementById("import-actions").style.display = "block";
+    }
 
     // Importer les données
-	document.getElementById("btn-import").addEventListener("click", async () => {
-	  if (!excelData || excelData.length === 0) {
-		showToast("Aucune donnée à importer.");
-		return;
-	  }
+    document.getElementById("btn-import").addEventListener("click", async () => {
+      if (!excelData || excelData.length === 0) {
+        showToast("Aucune donnée à importer.");
+        return;
+      }
 
-	  try {
-		console.log("Début de l'import. Nombre de lignes à importer :", excelData.length);
+      try {
+        console.log("Début de l'import. Nombre de lignes à importer :", excelData.length);
 
-		const p = CONFIG.pieces;
-		const actions = [];
-		const unknownBuildings = new Set();
-		const unknownServices = new Set();
-		const unknownTypologies = new Set();
+        const p = CONFIG.pieces;
+        const actions = [];
+        const unknownBuildings = new Set();
+        const unknownServices = new Set();
+        const unknownTypologies = new Set();
 
-		for (const [index, row] of excelData.entries()) {
-		  console.log(`Traitement de la ligne ${index + 1} :`, row);
+        for (const [index, row] of excelData.entries()) {
+          console.log(`Traitement de la ligne ${index + 1} :`, row);
 
-		  // Vérifier si le bâtiment existe
-		  const buildingCode = row["code_batiment"];
-		  if (!buildingCode) {
-			console.error(`Ligne ${index + 1} : La colonne "code_batiment" est manquante ou vide.`);
-			continue;
-		  }
+          // Valider les données de la ligne
+          const validationErrors = validateData(row);
+          if (validationErrors.length > 0) {
+            console.error(`Ligne ${index + 1} : Erreurs de validation - ${validationErrors.join(" ")}`);
+            continue;
+          }
 
-		  const building = buildings.find(b => b[CONFIG.inventaire.code] === buildingCode);
-		  if (!building) {
-			console.error(`Ligne ${index + 1} : Bâtiment non trouvé pour le code "${buildingCode}".`);
-			unknownBuildings.add(buildingCode);
-			continue;
-		  }
-		  console.log(`Ligne ${index + 1} : Bâtiment trouvé - ID : ${building.id}`);
+          // Vérifier si le bâtiment existe
+          const buildingCode = row["code_batiment"];
+          if (!buildingCode) {
+            console.error(`Ligne ${index + 1} : La colonne "code_batiment" est manquante ou vide.`);
+            continue;
+          }
 
-		  // Trouver le service
-		  const service = services.find(s => s[CONFIG.services.nom] === row["service_occupant"]);
-		  if (!service) {
-			console.error(`Ligne ${index + 1} : Service non trouvé pour "${row["service_occupant"]}".`);
-			unknownServices.add(row["service_occupant"]);
-		  } else {
-			console.log(`Ligne ${index + 1} : Service trouvé - ID : ${service.id}`);
-		  }
+          const building = buildings.find(b => b[CONFIG.inventaire.code] === buildingCode);
+          if (!building) {
+            console.error(`Ligne ${index + 1} : Bâtiment non trouvé pour le code "${buildingCode}".`);
+            unknownBuildings.add(buildingCode);
+            continue;
+          }
+          console.log(`Ligne ${index + 1} : Bâtiment trouvé - ID : ${building.id}`);
 
-		  // Trouver la typologie
-		  const typologie = typologies.find(t => t[CONFIG.typologie.label] === row["typologie_pie"]);
-		  if (!typologie) {
-			console.error(`Ligne ${index + 1} : Typologie non trouvée pour "${row["typologie_pie"]}".`);
-			unknownTypologies.add(row["typologie_pie"]);
-		  } else {
-			console.log(`Ligne ${index + 1} : Typologie trouvée - ID : ${typologie.id}`);
-		  }
+          // Trouver le service
+          const service = services.find(s => s[CONFIG.services.nom] === row["service_occupant"]);
+          if (!service) {
+            console.error(`Ligne ${index + 1} : Service non trouvé pour "${row["service_occupant"]}".`);
+            unknownServices.add(row["service_occupant"]);
+          } else {
+            console.log(`Ligne ${index + 1} : Service trouvé - ID : ${service.id}`);
+          }
 
-		  // Vérifier la nature opérationnelle
-		  let opValue = null;
-		  if (row["nature_operationnelle"] === "Oui") opValue = true;
-		  if (row["nature_operationnelle"] === "Non") opValue = false;
-		  console.log(`Ligne ${index + 1} : Nature opérationnelle : ${opValue}`);
+          // Trouver la typologie
+          const typologie = typologies.find(t => t[CONFIG.typologie.label] === row["typologie_pie"]);
+          if (!typologie) {
+            console.error(`Ligne ${index + 1} : Typologie non trouvée pour "${row["typologie_pie"]}".`);
+            unknownTypologies.add(row["typologie_pie"]);
+          } else {
+            console.log(`Ligne ${index + 1} : Typologie trouvée - ID : ${typologie.id}`);
+          }
 
-		  // Ajouter l'action pour cette pièce
-		  actions.push(["AddRecord", CONFIG.tables.pieces, null, {
-			[p.batimentRef]: building.id,
-			[p.niveau]: row["niveau"] || "",
-			[p.numero]: row["numero_local"] || "",
-			[p.nom]: row["nom_local"] || "",
-			[p.typologie]: typologie ? typologie.id : null,
-			[p.surface]: parseFloat(row["surface"]) || 0,
-			[p.serviceRef]: service ? service.id : null,
-			[p.sousService]: row["sous_service"] || "",
-			[p.nbOccupant]: row["nb_occupant"] ? Number(row["nb_occupant"]) : null,
-			[p.nbPdt]: row["nb_pdt"] ? Number(row["nb_pdt"]) : null,
-			[p.natureOperationnelle]: opValue,
-			[p.numCat]: row["num_cat"] || "",
-			[p.classTypologie]: null,
-			[p.nbResident]: null,
-			[p.pourcentageResident]: null,
-		  }]);
-		  console.log(`Ligne ${index + 1} : Action ajoutée avec succès.`);
-		}
+          // Vérifier la nature opérationnelle
+          let opValue = null;
+          if (row["nature_operationnelle"] === "Oui") opValue = true;
+          if (row["nature_operationnelle"] === "Non") opValue = false;
+          console.log(`Ligne ${index + 1} : Nature opérationnelle : ${opValue}`);
 
-		console.log("Nombre total d'actions préparées :", actions.length);
+          // Ajouter l'action pour cette pièce
+          actions.push(["AddRecord", CONFIG.tables.pieces, null, {
+            [p.batimentRef]: building.id,
+            [p.niveau]: row["niveau"] || "",
+            [p.numero]: row["numero_local"] || "",
+            [p.nom]: row["nom_local"] || "",
+            [p.typologie]: typologie ? typologie.id : null,
+            [p.surface]: parseFloat(row["surface"]) || 0,
+            [p.serviceRef]: service ? service.id : null,
+            [p.sousService]: row["sous_service"] || "",
+            [p.nbOccupant]: row["nb_occupant"] ? Number(row["nb_occupant"]) : null,
+            [p.nbPdt]: row["nb_pdt"] ? Number(row["nb_pdt"]) : null,
+            [p.natureOperationnelle]: opValue,
+            [p.numCat]: row["num_cat"] || "",
+            [p.classTypologie]: null,
+            [p.nbResident]: null,
+            [p.pourcentageResident]: null,
+          }]);
+          console.log(`Ligne ${index + 1} : Action ajoutée avec succès.`);
+        }
 
-		// Afficher les erreurs si des bâtiments, services ou typologies sont inconnus
-		let errorMessages = [];
-		if (unknownBuildings.size > 0) {
-		  errorMessages.push(`Bâtiments non reconnus : ${Array.from(unknownBuildings).join(", ")}.`);
-		}
-		if (unknownServices.size > 0) {
-		  errorMessages.push(`Services non reconnus : ${Array.from(unknownServices).join(", ")}.`);
-		}
-		if (unknownTypologies.size > 0) {
-		  errorMessages.push(`Typologies non reconnues : ${Array.from(unknownTypologies).join(", ")}.`);
-		}
+        console.log("Nombre total d'actions préparées :", actions.length);
 
-		if (errorMessages.length > 0) {
-		  showToast(errorMessages.join(" "));
-		}
+        // Afficher les erreurs si des bâtiments, services ou typologies sont inconnus
+        let errorMessages = [];
+        if (unknownBuildings.size > 0) {
+          errorMessages.push(`Bâtiments non reconnus : ${Array.from(unknownBuildings).join(", ")}.`);
+        }
+        if (unknownServices.size > 0) {
+          errorMessages.push(`Services non reconnus : ${Array.from(unknownServices).join(", ")}.`);
+        }
+        if (unknownTypologies.size > 0) {
+          errorMessages.push(`Typologies non reconnues : ${Array.from(unknownTypologies).join(", ")}.`);
+        }
 
-		if (actions.length > 0) {
-		  console.log("Tentative d'application des actions...");
-		  const result = await grist.docApi.applyUserActions(actions);
-		  console.log("Résultat de l'import :", result);
-		  showToast(`Import réussi : ${actions.length} pièces ajoutées.`);
-		} else {
-		  showToast("Aucune pièce valide à importer.");
-		}
+        if (errorMessages.length > 0) {
+          showToast(errorMessages.join(" "));
+        }
 
-		document.getElementById("preview-section").style.display = "none";
-		document.getElementById("import-actions").style.display = "none";
-		excelData = [];
-	  } catch (err) {
-		console.error("Erreur détaillée lors de l'import :", err);
-		showToast("Erreur lors de l'import. Vérifiez les logs dans la console pour plus de détails.");
-	  }
-	});
+        if (actions.length > 0) {
+          console.log("Tentative d'application des actions...");
+          const result = await grist.docApi.applyUserActions(actions);
+          console.log("Résultat de l'import :", result);
+          showToast(`Import réussi : ${actions.length} pièces ajoutées.`);
+        } else {
+          showToast("Aucune pièce valide à importer.");
+        }
+
+        document.getElementById("preview-section").style.display = "none";
+        document.getElementById("import-actions").style.display = "none";
+        excelData = [];
+      } catch (err) {
+        console.error("Erreur détaillée lors de l'import :", err);
+        showToast("Erreur lors de l'import. Vérifiez les logs dans la console pour plus de détails.");
+      }
+    });
 
     // Annuler l'import
     document.getElementById("btn-cancel").addEventListener("click", () => {
