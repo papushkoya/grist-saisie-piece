@@ -499,90 +499,124 @@
     });
 
     // Lire le fichier Excel
-    function readExcelFile(file) {
-      const reader = new FileReader();
-      reader.onload = (e) => {
-        const data = new Uint8Array(e.target.result);
-        const workbook = XLSX.read(data, { type: "array" });
-        const firstSheet = workbook.Sheets[workbook.SheetNames[0]];
-        excelData = XLSX.utils.sheet_to_json(firstSheet);
-        console.log("Données Excel :", excelData);
-        previewData();
-      };
-      reader.readAsArrayBuffer(file);
-    }
+	 function readExcelFile(file) {
+	  const reader = new FileReader();
+	  reader.onload = (e) => {
+		const data = new Uint8Array(e.target.result);
+		const workbook = XLSX.read(data, { type: "array" });
+		const firstSheet = workbook.Sheets[workbook.SheetNames[0]];
+		excelData = XLSX.utils.sheet_to_json(firstSheet);
+
+		// Vérifier que les colonnes requises existent
+		const requiredColumns = ["Numéro", "Nom", "Étage", "Typologie", "Surface (m²)", "Service occupant", "Code bâtiment"];
+		const missingColumns = requiredColumns.filter(col => !excelData[0] || !(col in excelData[0]));
+
+		if (missingColumns.length > 0) {
+		  showToast(`Colonnes manquantes dans le fichier : ${missingColumns.join(", ")}.`);
+		  excelData = [];
+		  return;
+		}
+
+		console.log("Données Excel :", excelData);
+		previewData();
+	  };
+	  reader.readAsArrayBuffer(file);
+	}
 
     // Aperçu des données
-    function previewData() {
-      const previewBody = document.getElementById("preview-body");
-      previewBody.innerHTML = "";
-      excelData.slice(0, 10).forEach(row => {
-        const tr = document.createElement("tr");
-        tr.innerHTML = `
-          <td>${row["Numéro"] || ""}</td>
-          <td>${row["Nom"] || ""}</td>
-          <td>${row["Étage"] || ""}</td>
-          <td>${row["Typologie"] || ""}</td>
-          <td>${row["Surface (m²)"] || ""}</td>
-          <td>${row["Service occupant"] || ""}</td>
-          <td>${row["Nb occupants"] || ""}</td>
-          <td>${row["Nature opérationnelle"] || ""}</td>
-        `;
-        previewBody.appendChild(tr);
-      });
-      document.getElementById("preview-section").style.display = "block";
-      document.getElementById("import-actions").style.display = "block";
-    }
+	function previewData() {
+	  const previewBody = document.getElementById("preview-body");
+	  previewBody.innerHTML = "";
+	  if (excelData.length === 0) {
+		showToast("Aucune donnée valide trouvée dans le fichier.");
+		return;
+	  }
+	  excelData.slice(0, 10).forEach(row => {
+		const tr = document.createElement("tr");
+		tr.innerHTML = `
+		  <td>${row["Numéro"] || ""}</td>
+		  <td>${row["Nom"] || ""}</td>
+		  <td>${row["Étage"] || ""}</td>
+		  <td>${row["Typologie"] || ""}</td>
+		  <td>${row["Surface (m²)"] || ""}</td>
+		  <td>${row["Service occupant"] || ""}</td>
+		  <td>${row["Nb occupants"] || ""}</td>
+		  <td>${row["Nature opérationnelle"] || ""}</td>
+		`;
+		previewBody.appendChild(tr);
+	  });
+	  document.getElementById("preview-section").style.display = "block";
+	  document.getElementById("import-actions").style.display = "block";
+	}
 
     // Importer les données
-    document.getElementById("btn-import").addEventListener("click", async () => {
-      if (!selectedBuilding) {
-        showToast("Veuillez sélectionner un bâtiment.");
-        return;
-      }
-      if (!excelData.length) {
-        showToast("Aucune donnée à importer.");
-        return;
-      }
+		document.getElementById("btn-import").addEventListener("click", async () => {
+	  if (!excelData.length) {
+		showToast("Aucune donnée à importer.");
+		return;
+	  }
 
-      try {
-        const p = CONFIG.pieces;
-        const actions = excelData.map(row => {
-          const service = services.find(s => s[CONFIG.services.nom] === row["Service occupant"]);
-          const typologie = typologies.find(t => t[CONFIG.typologie.label] === row["Typologie"]);
+	  try {
+		const p = CONFIG.pieces;
+		const actions = [];
+		const unknownBuildings = new Set(); // Pour suivre les bâtiments inconnus
 
-          let opValue = null;
-          if (row["Nature opérationnelle"] === "Oui") opValue = true;
-          if (row["Nature opérationnelle"] === "Non") opValue = false;
+		for (const row of excelData) {
+		  // Vérifier si le bâtiment existe
+		  const buildingCode = row["Code bâtiment"]; // Assurez-vous que cette colonne existe dans votre fichier Excel
+		  const building = buildings.find(b => b[CONFIG.inventaire.code] === buildingCode);
 
-          return ["AddRecord", CONFIG.tables.pieces, null, {
-            [p.batimentRef]: selectedBuilding.id,
-            [p.numero]: row["Numéro"] || "",
-            [p.nom]: row["Nom"] || "",
-            [p.niveau]: row["Étage"] || "",
-            [p.typologie]: typologie ? typologie.id : null,
-            [p.surface]: parseFloat(row["Surface (m²)"]) || 0,
-            [p.serviceRef]: service ? service.id : null,
-            [p.nbOccupant]: row["Nb occupants"] ? Number(row["Nb occupants"]) : null,
-            [p.natureOperationnelle]: opValue,
-            [p.sousService]: row["Sous-service"] || "",
-            [p.nbPdt]: row["Nb places de travail"] ? Number(row["Nb places de travail"]) : null,
-            [p.nbResident]: row["Nb résidents"] ? Number(row["Nb résidents"]) : null,
-            [p.numCat]: row["Numéro de catégorie"] || "",
-            [p.pourcentageResident]: row["% résidents"] ? Number(row["% résidents"]) : null,
-          }];
-        });
+		  if (!building) {
+			unknownBuildings.add(buildingCode);
+			continue; // Ignorer cette ligne si le bâtiment n'existe pas
+		  }
 
-        await grist.docApi.applyUserActions(actions);
-        showToast(`Import réussi : ${excelData.length} pièces ajoutées.`);
-        document.getElementById("preview-section").style.display = "none";
-        document.getElementById("import-actions").style.display = "none";
-        excelData = [];
-      } catch (err) {
-        console.error("Erreur lors de l'import :", err);
-        showToast("Erreur lors de l'import. Vérifiez les données.");
-      }
-    });
+		  // Trouver le service et la typologie
+		  const service = services.find(s => s[CONFIG.services.nom] === row["Service occupant"]);
+		  const typologie = typologies.find(t => t[CONFIG.typologie.label] === row["Typologie"]);
+
+		  let opValue = null;
+		  if (row["Nature opérationnelle"] === "Oui") opValue = true;
+		  if (row["Nature opérationnelle"] === "Non") opValue = false;
+
+		  // Ajouter l'action pour cette pièce
+		  actions.push(["AddRecord", CONFIG.tables.pieces, null, {
+			[p.batimentRef]: building.id, // Utiliser l'ID du bâtiment trouvé
+			[p.numero]: row["Numéro"] || "",
+			[p.nom]: row["Nom"] || "",
+			[p.niveau]: row["Étage"] || "",
+			[p.typologie]: typologie ? typologie.id : null,
+			[p.surface]: parseFloat(row["Surface (m²)"]) || 0,
+			[p.serviceRef]: service ? service.id : null,
+			[p.nbOccupant]: row["Nb occupants"] ? Number(row["Nb occupants"]) : null,
+			[p.natureOperationnelle]: opValue,
+			[p.sousService]: row["Sous-service"] || "",
+			[p.nbPdt]: row["Nb places de travail"] ? Number(row["Nb places de travail"]) : null,
+			[p.nbResident]: row["Nb résidents"] ? Number(row["Nb résidents"]) : null,
+			[p.numCat]: row["Numéro de catégorie"] || "",
+			[p.pourcentageResident]: row["% résidents"] ? Number(row["% résidents"]) : null,
+		  }]);
+		}
+
+		if (unknownBuildings.size > 0) {
+		  showToast(`Certains bâtiments ne sont pas reconnus : ${Array.from(unknownBuildings).join(", ")}. Les pièces associées n'ont pas été importées.`);
+		}
+
+		if (actions.length > 0) {
+		  await grist.docApi.applyUserActions(actions);
+		  showToast(`Import réussi : ${actions.length} pièces ajoutées.`);
+		} else {
+		  showToast("Aucune pièce valide à importer.");
+		}
+
+		document.getElementById("preview-section").style.display = "none";
+		document.getElementById("import-actions").style.display = "none";
+		excelData = [];
+	  } catch (err) {
+		console.error("Erreur lors de l'import :", err);
+		showToast("Erreur lors de l'import. Vérifiez les données.");
+	  }
+	});
 
     // Annuler l'import
     document.getElementById("btn-cancel").addEventListener("click", () => {
