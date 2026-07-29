@@ -605,9 +605,9 @@
 
 		for (const row of excelData) {
 		  // Vérifier si le bâtiment existe
-		  const buildingCode = row["code_batime"];
+		  const buildingCode = row["code_batiment"];
 		  if (!buildingCode) {
-			showToast(`La colonne "code_batime" est manquante ou vide pour certaines lignes.`);
+			showToast(`La colonne "code_batiment" est manquante ou vide pour certaines lignes.`);
 			continue;
 		  }
 
@@ -618,29 +618,29 @@
 		  }
 
 		  // Trouver le service et la typologie
-		  const service = services.find(s => s[CONFIG.services.nom] === row["service_occi"]);
-		  const typologie = typologies.find(t => t[CONFIG.typologie.label] === row["typologie_pi"]);
+		  const service = services.find(s => s[CONFIG.services.nom] === row["service_occupant"]);
+		  const typologie = typologies.find(t => t[CONFIG.typologie.label] === row["typologie_pie"]);
 
 		  let opValue = null;
-		  if (row["nature_oper"] === "Oui") opValue = true;
-		  if (row["nature_oper"] === "Non") opValue = false;
+		  if (row["nature_operationnelle"] === "Oui") opValue = true;
+		  if (row["nature_operationnelle"] === "Non") opValue = false;
 
 		  // Ajouter l'action pour cette pièce
 		  actions.push(["AddRecord", CONFIG.tables.pieces, null, {
 			[p.batimentRef]: building.id,
-			[p.numero]: row["numero_loc"] || "",
+			[p.numero]: row["numero_local"] || "",
 			[p.nom]: row["nom_local"] || "",
 			[p.niveau]: row["niveau"] || "",
 			[p.typologie]: typologie ? typologie.id : null,
 			[p.surface]: parseFloat(row["surface"]) || 0,
 			[p.serviceRef]: service ? service.id : null,
-			[p.nbOccupant]: row["nb_occupan"] ? Number(row["nb_occupan"]) : null,
+			[p.nbOccupant]: row["nb_occupant"] ? Number(row["nb_occupant"]) : null,
 			[p.natureOperationnelle]: opValue,
-			[p.sousService]: row["sous_servic"] || "",
+			[p.sousService]: row["sous_service"] || "",
 			[p.nbPdt]: row["nb_pdt"] ? Number(row["nb_pdt"]) : null,
 			[p.nbResident]: row["nb_resident"] ? Number(row["nb_resident"]) : null,
 			[p.numCat]: row["num_cat"] || "",
-			[p.pourcentageResident]: row["pourcent_resi"] ? Number(row["pourcent_resi"]) : null,
+			[p.pourcentageResident]: row["pourcent_resident"] ? Number(row["pourcent_resident"]) : null,
 		  }]);
 		}
 
