@@ -590,40 +590,55 @@
 	  }
 
 	  try {
+		console.log("Début de l'import. Nombre de lignes à importer :", excelData.length);
+
 		const p = CONFIG.pieces;
 		const actions = [];
 		const unknownBuildings = new Set();
 		const unknownServices = new Set();
 		const unknownTypologies = new Set();
 
-		for (const row of excelData) {
+		for (const [index, row] of excelData.entries()) {
+		  console.log(`Traitement de la ligne ${index + 1} :`, row);
+
 		  // Vérifier si le bâtiment existe
 		  const buildingCode = row["code_batiment"];
 		  if (!buildingCode) {
-			showToast(`La colonne "code_batiment" est manquante ou vide pour certaines lignes.`);
+			console.error(`Ligne ${index + 1} : La colonne "code_batiment" est manquante ou vide.`);
 			continue;
 		  }
 
 		  const building = buildings.find(b => b[CONFIG.inventaire.code] === buildingCode);
 		  if (!building) {
+			console.error(`Ligne ${index + 1} : Bâtiment non trouvé pour le code "${buildingCode}".`);
 			unknownBuildings.add(buildingCode);
 			continue;
 		  }
+		  console.log(`Ligne ${index + 1} : Bâtiment trouvé - ID : ${building.id}`);
 
-		  // Trouver le service et la typologie
+		  // Trouver le service
 		  const service = services.find(s => s[CONFIG.services.nom] === row["service_occupant"]);
 		  if (!service) {
+			console.error(`Ligne ${index + 1} : Service non trouvé pour "${row["service_occupant"]}".`);
 			unknownServices.add(row["service_occupant"]);
+		  } else {
+			console.log(`Ligne ${index + 1} : Service trouvé - ID : ${service.id}`);
 		  }
 
+		  // Trouver la typologie
 		  const typologie = typologies.find(t => t[CONFIG.typologie.label] === row["typologie_pie"]);
 		  if (!typologie) {
+			console.error(`Ligne ${index + 1} : Typologie non trouvée pour "${row["typologie_pie"]}".`);
 			unknownTypologies.add(row["typologie_pie"]);
+		  } else {
+			console.log(`Ligne ${index + 1} : Typologie trouvée - ID : ${typologie.id}`);
 		  }
 
+		  // Vérifier la nature opérationnelle
 		  let opValue = null;
 		  if (row["nature_operationnelle"] === "Oui") opValue = true;
 		  if (row["nature_operationnelle"] === "Non") opValue = false;
+		  console.log(`Ligne ${index + 1} : Nature opérationnelle : ${opValue}`);
 
 		  // Ajouter l'action pour cette pièce
 		  actions.push(["AddRecord", CONFIG.tables.pieces, null, {
@@ -634,17 +649,19 @@
 			[p.typologie]: typologie ? typologie.id : null,
 			[p.surface]: parseFloat(row["surface"]) || 0,
 			[p.serviceRef]: service ? service.id : null,
-			[p.sousService]: row["sous_service"] || "", // Valeur vide autorisée
-			[p.nbOccupant]: row["nb_occupant"] ? Number(row["nb_occupant"]) : null, // Valeur vide autorisée
-			[p.nbPdt]: row["nb_pdt"] ? Number(row["nb_pdt"]) : null, // Valeur vide autorisée
+			[p.sousService]: row["sous_service"] || "",
+			[p.nbOccupant]: row["nb_occupant"] ? Number(row["nb_occupant"]) : null,
+			[p.nbPdt]: row["nb_pdt"] ? Number(row["nb_pdt"]) : null,
 			[p.natureOperationnelle]: opValue,
 			[p.numCat]: row["num_cat"] || "",
-			// Colonnes supplémentaires dans Grist
 			[p.classTypologie]: null,
 			[p.nbResident]: null,
 			[p.pourcentageResident]: null,
 		  }]);
+		  console.log(`Ligne ${index + 1} : Action ajoutée avec succès.`);
 		}
+
+		console.log("Nombre total d'actions préparées :", actions.length);
 
 		// Afficher les erreurs si des bâtiments, services ou typologies sont inconnus
 		let errorMessages = [];
@@ -663,7 +680,9 @@
 		}
 
 		if (actions.length > 0) {
-		  await grist.docApi.applyUserActions(actions);
+		  console.log("Tentative d'application des actions...");
+		  const result = await grist.docApi.applyUserActions(actions);
+		  console.log("Résultat de l'import :", result);
 		  showToast(`Import réussi : ${actions.length} pièces ajoutées.`);
 		} else {
 		  showToast("Aucune pièce valide à importer.");
@@ -673,8 +692,8 @@
 		document.getElementById("import-actions").style.display = "none";
 		excelData = [];
 	  } catch (err) {
-		console.error("Erreur lors de l'import :", err);
-		showToast("Erreur lors de l'import. Vérifiez les données.");
+		console.error("Erreur détaillée lors de l'import :", err);
+		showToast("Erreur lors de l'import. Vérifiez les logs dans la console pour plus de détails.");
 	  }
 	});
 
