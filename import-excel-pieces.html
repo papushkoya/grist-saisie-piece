@@ -1,0 +1,450 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Import de pièces en masse</title>
+  <script src="https://docs.getgrist.com/grist-plugin-api.js"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@500;600&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg: #EEF1F0;
+      --ink: #16232B;
+      --ink-soft: #5E6C72;
+      --navy: #16232B;
+      --line: #DADFE0;
+      --card: #FFFFFF;
+      --accent: #E07B2E;
+      --teal: #2F7D6B;
+      --teal-soft: #E5F1EE;
+      --danger: #C0503D;
+      --danger-soft: #F7E9E6;
+      --radius: 10px;
+      --font-display: 'IBM Plex Sans', sans-serif;
+      --font-mono: 'IBM Plex Mono', monospace;
+    }
+    * { box-sizing: border-box; }
+    body {
+      font-family: var(--font-display);
+      background: var(--bg);
+      color: var(--ink);
+      padding: 20px;
+    }
+    #wrap {
+      max-width: 880px;
+      margin: 0 auto;
+      padding: 28px 20px 60px;
+    }
+    #card {
+      background: var(--card);
+      border: 1px solid var(--line);
+      border-radius: 14px;
+      overflow: hidden;
+      box-shadow: 0 10px 30px rgba(22,35,43,0.06);
+    }
+    #head {
+      background: var(--navy);
+      color: #fff;
+      padding: 20px 28px;
+      display: flex;
+      align-items: baseline;
+      justify-content: space-between;
+    }
+    #head h1 {
+      margin: 0;
+      font-size: 19px;
+      font-weight: 600;
+      letter-spacing: 0.01em;
+    }
+    #head .sub {
+      font-family: var(--font-mono);
+      font-size: 12px;
+      color: rgba(255,255,255,0.55);
+    }
+    .label {
+      font-size: 11.5px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      color: var(--ink-soft);
+      margin-bottom: 8px;
+      display: block;
+    }
+    #file-upload {
+      margin: 20px 0;
+      padding: 20px;
+      border: 2px dashed var(--line);
+      border-radius: 8px;
+      text-align: center;
+      cursor: pointer;
+      background: var(--bg);
+    }
+    #file-upload input[type="file"] {
+      display: none;
+    }
+    #preview-table {
+      margin-top: 20px;
+      width: 100%;
+      border-collapse: collapse;
+    }
+    #preview-table th, #preview-table td {
+      padding: 10px;
+      border: 1px solid var(--line);
+      text-align: left;
+    }
+    #preview-table th {
+      background: var(--navy);
+      color: #fff;
+      font-size: 12px;
+      text-transform: uppercase;
+    }
+    #import-actions {
+      margin-top: 20px;
+      display: flex;
+      gap: 10px;
+    }
+    .btn {
+      padding: 10px 20px;
+      border: none;
+      border-radius: 8px;
+      font-weight: 600;
+      cursor: pointer;
+    }
+    .btn-primary {
+      background: var(--accent);
+      color: #fff;
+    }
+    .btn-secondary {
+      background: var(--bg);
+      color: var(--ink);
+    }
+    #toast {
+      position: fixed;
+      bottom: 24px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: var(--navy);
+      color: #fff;
+      padding: 11px 20px;
+      border-radius: 8px;
+      font-size: 13.5px;
+      box-shadow: 0 8px 20px rgba(0,0,0,0.2);
+      display: none;
+      z-index: 60;
+    }
+  </style>
+</head>
+<body>
+  <div id="wrap">
+    <div id="card">
+      <div id="head">
+        <h1>Import de pièces en masse</h1>
+      </div>
+      <div style="padding: 22px 28px;">
+        <label class="label">Sélectionner un bâtiment</label>
+        <div id="building-search-wrap">
+          <input id="building-search" type="text" placeholder="Rechercher par code ou nom de bâtiment…" autocomplete="off" />
+          <div id="building-suggestions"></div>
+        </div>
+        <div id="building-selected" style="display: none; margin-top: 12px; padding: 10px; background: var(--teal-soft); border-radius: 8px;">
+          <div class="info">
+            <b id="bs-code"></b> — <span id="bs-nom"></span><br/>
+            <span id="bs-adresse"></span>
+          </div>
+          <button id="bs-change" style="background: none; border: none; color: var(--ink-soft); cursor: pointer;">Changer de bâtiment</button>
+        </div>
+
+        <label class="label" style="margin-top: 20px;">Importer un fichier Excel</label>
+        <div id="file-upload">
+          <input type="file" id="file-input" accept=".xlsx, .xls" />
+          <p>Glissez-déposez un fichier Excel ou cliquez pour sélectionner</p>
+        </div>
+
+        <div id="preview-section" style="display: none; margin-top: 20px;">
+          <label class="label">Aperçu des données</label>
+          <table id="preview-table">
+            <thead>
+              <tr>
+                <th>Numéro</th>
+                <th>Nom</th>
+                <th>Étage</th>
+                <th>Typologie</th>
+                <th>Surface (m²)</th>
+                <th>Service occupant</th>
+                <th>Nb occupants</th>
+                <th>Nature opérationnelle</th>
+              </tr>
+            </thead>
+            <tbody id="preview-body"></tbody>
+          </table>
+        </div>
+
+        <div id="import-actions" style="display: none; margin-top: 20px;">
+          <button id="btn-import" class="btn btn-primary">Importer les données</button>
+          <button id="btn-cancel" class="btn btn-secondary">Annuler</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div id="toast"></div>
+
+  <script src="https://cdn.sheetjs.com/xlsx-0.19.3/package/dist/xlsx.full.min.js"></script>
+  <script>
+    // Configuration (à adapter selon votre document Grist)
+    const CONFIG = {
+      tables: {
+        inventaire: "BATIMENTS",
+        pieces: "PIECES",
+        services: "LIST_SERVICE",
+        typologie: "TYPOLOGIE",
+      },
+      inventaire: {
+        id: "id",
+        code: "code_batiment",
+        nom: "nom_batiment",
+        adresse: "adresse",
+        ville: "ville",
+        codePostal: "code_postal",
+      },
+      pieces: {
+        id: "id",
+        batimentRef: "code_batiment",
+        niveau: "niveau",
+        numero: "numero_local",
+        nom: "nom_local",
+        typologie: "typologie_pie",
+        serviceRef: "service_occupant",
+        sousService: "sous_service",
+        surface: "surface",
+        nbOccupant: "nb_occupant",
+        nbPdt: "nb_pdt",
+        natureOperationnelle: "nature_operationnelle",
+        numCat: "num_cat",
+        nbResident: "nb_resident",
+        pourcentageResident: "pourcentage_resident",
+      },
+      services: {
+        id: "id",
+        nom: "nom_service",
+      },
+      typologie: {
+        id: "id",
+        label: "ID_typo",
+      },
+    };
+
+    // Variables globales
+    let buildings = [];
+    let services = [];
+    let typologies = [];
+    let selectedBuilding = null;
+    let excelData = [];
+
+    // Fonction pour afficher un toast
+    function showToast(msg) {
+      const toast = document.getElementById("toast");
+      toast.textContent = msg;
+      toast.style.display = "block";
+      setTimeout(() => toast.style.display = "none", 2200);
+    }
+
+    // Charger les données depuis Grist
+    async function loadAll() {
+      try {
+        const [inv, srv, typ] = await Promise.all([
+          grist.docApi.fetchTable(CONFIG.tables.inventaire),
+          grist.docApi.fetchTable(CONFIG.tables.services),
+          grist.docApi.fetchTable(CONFIG.tables.typologie),
+        ]);
+        buildings = toRows(inv);
+        services = toRows(srv);
+        typologies = toRows(typ);
+        console.log("Bâtiments chargés :", buildings);
+      } catch (err) {
+        console.error("Erreur lors du chargement des données :", err);
+        showToast("Erreur lors du chargement des données.");
+      }
+    }
+
+    // Convertir les données de Grist en tableau d'objets
+    function toRows(table) {
+      if (!table || !table.id) return [];
+      const rows = [];
+      for (let i = 0; i < table.id.length; i++) {
+        const row = { id: table.id[i] };
+        for (const key of Object.keys(table)) {
+          if (key === "id") continue;
+          row[key] = table[key][i];
+        }
+        rows.push(row);
+      }
+      return rows;
+    }
+
+    // Sélectionner un bâtiment
+    function selectBuilding(id) {
+      const c = CONFIG.inventaire;
+      selectedBuilding = buildings.find(b => b.id === id);
+      document.getElementById("building-search").value = "";
+      document.getElementById("building-suggestions").style.display = "none";
+
+      document.getElementById("building-selected").style.display = "flex";
+      document.getElementById("bs-code").textContent = selectedBuilding[c.code] || "";
+      document.getElementById("bs-nom").textContent = selectedBuilding[c.nom] || "";
+      document.getElementById("bs-adresse").textContent =
+        [selectedBuilding[c.adresse], selectedBuilding[c.codePostal], selectedBuilding[c.ville]].filter(Boolean).join(", ");
+    }
+
+    // Recherche de bâtiments
+    document.getElementById("building-search").addEventListener("input", () => {
+      const q = document.getElementById("building-search").value.trim().toLowerCase();
+      const suggBox = document.getElementById("building-suggestions");
+      suggBox.innerHTML = "";
+      if (!q) return;
+
+      const c = CONFIG.inventaire;
+      const matches = buildings.filter(b =>
+        String(b[c.code] || "").toLowerCase().includes(q) ||
+        String(b[c.nom] || "").toLowerCase().includes(q)
+      ).slice(0, 8);
+
+      if (matches.length) {
+        suggBox.innerHTML = matches.map(b => `
+          <div class="sugg-row" data-id="${b.id}" style="padding: 8px; cursor: pointer; border-bottom: 1px solid var(--line);">
+            <div style="font-family: var(--font-mono); font-size: 11px; color: var(--accent);">${b[c.code] || ""}</div>
+            <div style="font-size: 13.5px;">${b[c.nom] || "Sans nom"}</div>
+          </div>
+        `).join("");
+        suggBox.style.display = "block";
+        suggBox.querySelectorAll(".sugg-row").forEach(el => {
+          el.addEventListener("click", () => selectBuilding(Number(el.dataset.id)));
+        });
+      }
+    });
+
+    // Changer de bâtiment
+    document.getElementById("bs-change").addEventListener("click", () => {
+      selectedBuilding = null;
+      document.getElementById("building-selected").style.display = "none";
+    });
+
+    // Gestion du fichier Excel
+    document.getElementById("file-upload").addEventListener("click", () => {
+      document.getElementById("file-input").click();
+    });
+
+    document.getElementById("file-input").addEventListener("change", (e) => {
+      const file = e.target.files[0];
+      if (!file) return;
+      if (!file.name.endsWith(".xlsx") && !file.name.endsWith(".xls")) {
+        showToast("Veuillez sélectionner un fichier Excel (.xlsx ou .xls).");
+        return;
+      }
+      readExcelFile(file);
+    });
+
+    // Lire le fichier Excel
+    function readExcelFile(file) {
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        const data = new Uint8Array(e.target.result);
+        const workbook = XLSX.read(data, { type: "array" });
+        const firstSheet = workbook.Sheets[workbook.SheetNames[0]];
+        excelData = XLSX.utils.sheet_to_json(firstSheet);
+        console.log("Données Excel :", excelData);
+        previewData();
+      };
+      reader.readAsArrayBuffer(file);
+    }
+
+    // Aperçu des données
+    function previewData() {
+      const previewBody = document.getElementById("preview-body");
+      previewBody.innerHTML = "";
+      excelData.slice(0, 10).forEach(row => {
+        const tr = document.createElement("tr");
+        tr.innerHTML = `
+          <td>${row["Numéro"] || ""}</td>
+          <td>${row["Nom"] || ""}</td>
+          <td>${row["Étage"] || ""}</td>
+          <td>${row["Typologie"] || ""}</td>
+          <td>${row["Surface (m²)"] || ""}</td>
+          <td>${row["Service occupant"] || ""}</td>
+          <td>${row["Nb occupants"] || ""}</td>
+          <td>${row["Nature opérationnelle"] || ""}</td>
+        `;
+        previewBody.appendChild(tr);
+      });
+      document.getElementById("preview-section").style.display = "block";
+      document.getElementById("import-actions").style.display = "block";
+    }
+
+    // Importer les données
+    document.getElementById("btn-import").addEventListener("click", async () => {
+      if (!selectedBuilding) {
+        showToast("Veuillez sélectionner un bâtiment.");
+        return;
+      }
+      if (!excelData.length) {
+        showToast("Aucune donnée à importer.");
+        return;
+      }
+
+      try {
+        const p = CONFIG.pieces;
+        const actions = excelData.map(row => {
+          // Trouver l'ID du service et de la typologie
+          const service = services.find(s => s[CONFIG.services.nom] === row["Service occupant"]);
+          const typologie = typologies.find(t => t[CONFIG.typologie.label] === row["Typologie"]);
+
+          // Déterminer la nature opérationnelle
+          let opValue = null;
+          if (row["Nature opérationnelle"] === "Oui") opValue = true;
+          if (row["Nature opérationnelle"] === "Non") opValue = false;
+
+          return ["AddRecord", CONFIG.tables.pieces, null, {
+            [p.batimentRef]: selectedBuilding.id,
+            [p.numero]: row["Numéro"] || "",
+            [p.nom]: row["Nom"] || "",
+            [p.niveau]: row["Étage"] || "",
+            [p.typologie]: typologie ? typologie.id : null,
+            [p.surface]: parseFloat(row["Surface (m²)"]) || 0,
+            [p.serviceRef]: service ? service.id : null,
+            [p.nbOccupant]: row["Nb occupants"] ? Number(row["Nb occupants"]) : null,
+            [p.natureOperationnelle]: opValue,
+            [p.sousService]: row["Sous-service"] || "",
+            [p.nbPdt]: row["Nb places de travail"] ? Number(row["Nb places de travail"]) : null,
+            [p.nbResident]: row["Nb résidents"] ? Number(row["Nb résidents"]) : null,
+            [p.numCat]: row["Numéro de catégorie"] || "",
+            [p.pourcentageResident]: row["% résidents"] ? Number(row["% résidents"]) : null,
+          }];
+        });
+
+        await grist.docApi.applyUserActions(actions);
+        showToast(`Import réussi : ${excelData.length} pièces ajoutées.`);
+        document.getElementById("preview-section").style.display = "none";
+        document.getElementById("import-actions").style.display = "none";
+        excelData = [];
+      } catch (err) {
+        console.error("Erreur lors de l'import :", err);
+        showToast("Erreur lors de l'import. Vérifiez les données.");
+      }
+    });
+
+    // Annuler l'import
+    document.getElementById("btn-cancel").addEventListener("click", () => {
+      document.getElementById("preview-section").style.display = "none";
+      document.getElementById("import-actions").style.display = "none";
+      excelData = [];
+      document.getElementById("file-input").value = "";
+    });
+
+    // Initialisation
+    grist.ready({ requiredAccess: "full" });
+    grist.onRecords(() => loadAll());
+    loadAll();
+  </script>
+</body>
+</html>
