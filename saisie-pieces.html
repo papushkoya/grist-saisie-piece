@@ -369,8 +369,7 @@
       <div class="field-row one">
         <div class="field">
           <label>Typologie</label>
-          <input id="f-typologie" list="typologie-list" type="text" />
-          <datalist id="typologie-list"></datalist>
+          <select id="f-typologie"><option value="">— Sélectionner —</option></select>
         </div>
       </div>
 
@@ -396,9 +395,8 @@
           <div class="field"><label>Nb places de travail</label><input id="f-nbpdt" type="number" step="1" min="0" /></div>
           <div class="field"><label>Nb résidents</label><input id="f-nbresident" type="number" step="1" min="0" /></div>
         </div>
-        <div class="field-row">
-          <div class="field"><label>Numéro de catégorie</label><input id="f-numcat" type="text" /></div>
-          <div class="field"><label>Classe typologie</label><input id="f-classtypo" type="text" /></div>
+        <div class="field-row two">
+          <div class="field"><label>Numéro de catégorie</label><input id="f-numcat" type="number" step="1" /></div>
           <div class="field"><label>% résidents</label><input id="f-pctresident" type="number" step="0.1" min="0" max="100" /></div>
         </div>
       </div>
@@ -435,9 +433,10 @@
    ============================================================ */
 const CONFIG = {
   tables: {
-    inventaire: "BATIMENTS",
+    inventaire: "Batiments",
     pieces: "PIECES",
-    services: "LIST_SERVICE",
+    services: "List_service",
+    typologie: "TYPOLOGIE",
   },
   inventaire: {
     id: "id",
@@ -457,21 +456,25 @@ const CONFIG = {
     numero: "numero_local",
     nom: "nom_local",
     typologie: "typologie_pie",
-    serviceRef: "service_occupant",   // Reference -> LIST_SERVICE
-    sousService: "sous_service",      // ⚠️ à vérifier : si le vrai id contient un tiret,
-                                       // remplace par le nom exact vu dans Raw Data
+    serviceRef: "service_occupant",   // Reference -> List_service
+    sousService: "sous_service",
     surface: "surface",
     nbOccupant: "nb_occupant",
     nbPdt: "nb_pdt",
-    natureOperationnelle: "nature_operationnelle", // stocké en booléen (true/false)
+    natureOperationnelle: "nature_operationnelle", // booléen (true/false)
     numCat: "num_cat",
-    classTypologie: "class_typologie",
+    // classTypologie ("class_typologie") est une formule calculée automatiquement
+    // par Grist (= surface de la typologie choisie) : on ne l'écrit jamais.
     nbResident: "nb_resident",
     pourcentageResident: "pourcentage_resident",
   },
   services: {
     id: "id",
     nom: "nom_service",
+  },
+  typologie: {
+    id: "id",
+    label: "ID_typo",
   },
 };
 
@@ -481,6 +484,7 @@ const CONFIG = {
 let buildings = [];
 let allPieces = [];
 let services = [];
+let typologies = [];
 let selectedBuilding = null;   // objet bâtiment sélectionné
 let selectedRowId = null;      // ligne pièce sélectionnée dans le tableau
 let formMode = null;           // "create" | "edit" | null
@@ -512,16 +516,18 @@ function fmtSurface(v){ const n = Number(v)||0; return n.toLocaleString("fr-FR",
    CHARGEMENT
    ============================================================ */
 async function loadAll() {
-  const [inv, pcs, srv] = await Promise.all([
+  const [inv, pcs, srv, typ] = await Promise.all([
     grist.docApi.fetchTable(CONFIG.tables.inventaire),
     grist.docApi.fetchTable(CONFIG.tables.pieces),
     grist.docApi.fetchTable(CONFIG.tables.services),
+    grist.docApi.fetchTable(CONFIG.tables.typologie),
   ]);
   buildings = toRows(inv);
   allPieces = toRows(pcs);
   services = toRows(srv);
+  typologies = toRows(typ);
   populateServiceSelect();
-  populateTypologieList();
+  populateTypologieSelect();
   if (selectedBuilding) {
     const fresh = buildings.find(b => b.id === selectedBuilding.id);
     if (fresh) selectedBuilding = fresh;
@@ -536,10 +542,12 @@ function populateServiceSelect() {
     services.map(s => `<option value="${s.id}">${s[CONFIG.services.nom] || ""}</option>`).join("");
   sel.value = current;
 }
-function populateTypologieList() {
-  const dl = document.getElementById("typologie-list");
-  const values = [...new Set(allPieces.map(p => p[CONFIG.pieces.typologie]).filter(Boolean))];
-  dl.innerHTML = values.map(v => `<option value="${v}"></option>`).join("");
+function populateTypologieSelect() {
+  const sel = document.getElementById("f-typologie");
+  const current = sel.value;
+  sel.innerHTML = `<option value="">— Sélectionner —</option>` +
+    typologies.map(t => `<option value="${t.id}">${t[CONFIG.typologie.label] || ""}</option>`).join("");
+  sel.value = current;
 }
 
 /* ============================================================
@@ -662,6 +670,7 @@ function renderRoomsTable() {
 
   tbody.innerHTML = rows.map(r => {
     const service = services.find(s => s.id === refId(r[p.serviceRef]));
+    const typo = typologies.find(t => t.id === refId(r[p.typologie]));
     const isOp = r[p.natureOperationnelle] === true;
     const selected = r.id === selectedRowId ? "selected" : "";
     return `
@@ -669,7 +678,7 @@ function renderRoomsTable() {
         <td>${r[p.numero] || ""}</td>
         <td>${r[p.nom] || ""}</td>
         <td>${r[p.niveau] || ""}</td>
-        <td>${r[p.typologie] || ""}</td>
+        <td>${typo ? typo[CONFIG.typologie.label] : ""}</td>
         <td class="num">${fmtSurface(r[p.surface])}</td>
         <td>${service ? service[CONFIG.services.nom] : ""}</td>
         <td class="num">${r[p.nbOccupant] ?? ""}</td>
@@ -704,7 +713,6 @@ function resetForm(keepMode) {
   document.getElementById("f-nbpdt").value = "";
   document.getElementById("f-nbresident").value = "";
   document.getElementById("f-numcat").value = "";
-  document.getElementById("f-classtypo").value = "";
   document.getElementById("f-pctresident").value = "";
   if (!keepMode) { formMode = null; }
 }
@@ -729,7 +737,7 @@ document.getElementById("btn-edit").addEventListener("click", () => {
   document.getElementById("f-numero").value = r[p.numero] || "";
   document.getElementById("f-nom").value = r[p.nom] || "";
   document.getElementById("f-niveau").value = r[p.niveau] || "";
-  document.getElementById("f-typologie").value = r[p.typologie] || "";
+  document.getElementById("f-typologie").value = refId(r[p.typologie]) || "";
   document.getElementById("f-surface").value = r[p.surface] ?? "";
   document.getElementById("f-service").value = refId(r[p.serviceRef]) || "";
   document.getElementById("f-nboccupant").value = r[p.nbOccupant] ?? "";
@@ -739,7 +747,6 @@ document.getElementById("btn-edit").addEventListener("click", () => {
   document.getElementById("f-nbpdt").value = r[p.nbPdt] ?? "";
   document.getElementById("f-nbresident").value = r[p.nbResident] ?? "";
   document.getElementById("f-numcat").value = r[p.numCat] || "";
-  document.getElementById("f-classtypo").value = r[p.classTypologie] || "";
   document.getElementById("f-pctresident").value = r[p.pourcentageResident] ?? "";
   document.getElementById("form-mode-label").textContent = `Modification — ${r[p.nom] || "pièce sélectionnée"}`;
 });
@@ -797,7 +804,7 @@ document.getElementById("btn-save").addEventListener("click", async () => {
     [p.numero]: document.getElementById("f-numero").value.trim(),
     [p.nom]: nom,
     [p.niveau]: document.getElementById("f-niveau").value.trim(),
-    [p.typologie]: document.getElementById("f-typologie").value.trim(),
+    [p.typologie]: document.getElementById("f-typologie").value ? Number(document.getElementById("f-typologie").value) : null,
     [p.surface]: parseFloat(document.getElementById("f-surface").value) || 0,
     [p.serviceRef]: document.getElementById("f-service").value ? Number(document.getElementById("f-service").value) : null,
     [p.nbOccupant]: document.getElementById("f-nboccupant").value ? Number(document.getElementById("f-nboccupant").value) : null,
@@ -806,7 +813,6 @@ document.getElementById("btn-save").addEventListener("click", async () => {
     [p.nbPdt]: document.getElementById("f-nbpdt").value ? Number(document.getElementById("f-nbpdt").value) : null,
     [p.nbResident]: document.getElementById("f-nbresident").value ? Number(document.getElementById("f-nbresident").value) : null,
     [p.numCat]: document.getElementById("f-numcat").value.trim(),
-    [p.classTypologie]: document.getElementById("f-classtypo").value.trim(),
     [p.pourcentageResident]: document.getElementById("f-pctresident").value ? Number(document.getElementById("f-pctresident").value) : null,
   };
 
