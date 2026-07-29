@@ -546,14 +546,14 @@
 	  excelData.slice(0, 10).forEach(row => {
 		const tr = document.createElement("tr");
 		tr.innerHTML = `
-		  <td>${row["numero_loc"] || ""}</td>
+		  <td>${row["numero_local"] || ""}</td>
 		  <td>${row["nom_local"] || ""}</td>
 		  <td>${row["niveau"] || ""}</td>
-		  <td>${row["typologie_pi"] || ""}</td>
+		  <td>${row["typologie_pie"] || ""}</td>
 		  <td>${row["surface"] || ""}</td>
-		  <td>${row["service_occi"] || ""}</td>
-		  <td>${row["nb_occupan"] || ""}</td>
-		  <td>${row["nature_oper"] || ""}</td>
+		  <td>${row["service_occupant"] || ""}</td>
+		  <td>${row["nb_occupant"] || ""}</td>
+		  <td>${row["nature_operationnelle"] || ""}</td>
 		`;
 		previewBody.appendChild(tr);
 	  });
