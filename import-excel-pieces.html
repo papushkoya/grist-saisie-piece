@@ -509,13 +509,13 @@
 
 		// Mettre à jour les noms des colonnes requises
 		const requiredColumns = [
-		  "numero_loc",    // au lieu de "Numéro"
+		  "numero_local",    // au lieu de "Numéro"
 		  "nom_local",     // au lieu de "Nom"
 		  "niveau",        // au lieu de "Étage"
-		  "typologie_pi", // au lieu de "Typologie"
+		  "typologie_pie", // au lieu de "Typologie"
 		  "surface",       // au lieu de "Surface (m²)"
-		  "service_occi",  // au lieu de "Service occupant"
-		  "code_batime"    // au lieu de "Code bâtiment" (corrigez aussi cette faute de frappe dans votre fichier si possible)
+		  "service_occupant",  // au lieu de "Service occupant"
+		  "code_batiment"    // au lieu de "Code bâtiment" 
 		];
 
 		const missingColumns = requiredColumns.filter(col => !excelData[0] || !(col in excelData[0]));
