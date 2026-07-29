@@ -542,10 +542,39 @@
 		return;
 	  }
 
-	  // Afficher les données avec les noms de colonnes du fichier
+	  // Vérifier que les colonnes requises existent dans la première ligne
+	  const requiredColumns = [
+		"numero_local",
+		"nom_local",
+		"niveau",
+		"typologie_pie",
+		"surface",
+		"service_occupant",
+		"code_batiment"
+	  ];
+
+	  const firstRow = excelData[0];
+	  const missingColumns = requiredColumns.filter(col => !(col in firstRow));
+
+	  if (missingColumns.length > 0) {
+		showToast(`Colonnes manquantes dans le fichier : ${missingColumns.join(", ")}.`);
+		return;
+	  }
+
+	  // Ajouter l'en-tête pour le code_batiment dans le tableau
+	  const tableHeader = document.querySelector("#preview-table thead tr");
+	  if (!document.getElementById("building-code-header")) {
+		const th = document.createElement("th");
+		th.id = "building-code-header";
+		th.textContent = "Code Bâtiment";
+		tableHeader.insertBefore(th, tableHeader.firstChild);
+	  }
+
+	  // Afficher les données avec le code_batiment
 	  excelData.slice(0, 10).forEach(row => {
 		const tr = document.createElement("tr");
 		tr.innerHTML = `
+		  <td>${row["code_batiment"] || ""}</td>
 		  <td>${row["numero_local"] || ""}</td>
 		  <td>${row["nom_local"] || ""}</td>
 		  <td>${row["niveau"] || ""}</td>
@@ -575,7 +604,7 @@
 		const unknownBuildings = new Set();
 
 		for (const row of excelData) {
-		  // Utiliser le nom exact de la colonne pour le code bâtiment
+		  // Vérifier si le bâtiment existe
 		  const buildingCode = row["code_batime"];
 		  if (!buildingCode) {
 			showToast(`La colonne "code_batime" est manquante ou vide pour certaines lignes.`);
@@ -585,10 +614,10 @@
 		  const building = buildings.find(b => b[CONFIG.inventaire.code] === buildingCode);
 		  if (!building) {
 			unknownBuildings.add(buildingCode);
-			continue;
+			continue; // Ignorer cette ligne si le bâtiment n'existe pas
 		  }
 
-		  // Trouver le service et la typologie avec les nouveaux noms de colonnes
+		  // Trouver le service et la typologie
 		  const service = services.find(s => s[CONFIG.services.nom] === row["service_occi"]);
 		  const typologie = typologies.find(t => t[CONFIG.typologie.label] === row["typologie_pi"]);
 
