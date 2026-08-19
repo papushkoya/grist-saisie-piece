@@ -2,602 +2,3998 @@
 <html lang="fr">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Saisie de pièces</title>
+
+<!--
+  Seul script externe utilisé :
+  l'API officielle du widget Grist.
+  Aucun appel Google Fonts / Google API.
+-->
 <script src="https://docs.getgrist.com/grist-plugin-api.js"></script>
 
 <style>
-:root{
-  --bg:#EEF1F0;--ink:#16232B;--ink-soft:#5E6C72;--navy:#16232B;
-  --line:#DADFE0;--card:#FFF;--accent:#E07B2E;--teal:#2F7D6B;
-  --teal-soft:#E5F1EE;--danger:#C0503D;--danger-soft:#F7E9E6;
-  --font-display:Arial,Helvetica,sans-serif;--font-mono:"Courier New",Courier,monospace
-}
-*{box-sizing:border-box}
-html,body{height:100%;margin:0}
-body{font-family:var(--font-display);background:var(--bg);color:var(--ink)}
-#wrap{max-width:1500px;margin:auto;padding:24px 20px 60px}
-#card{background:var(--card);border:1px solid var(--line);border-radius:14px;overflow:hidden;box-shadow:0 10px 30px rgba(22,35,43,.06)}
-#head{background:var(--navy);color:#fff;padding:18px 24px;display:flex;align-items:baseline;justify-content:space-between}
-#head h1{margin:0;font-size:18px;font-weight:600}.sub{font:12px var(--font-mono);color:#ffffff8c}
-#building-block{padding:18px 24px;border-bottom:1px solid var(--line)}
-.label{font-size:11.5px;font-weight:600;text-transform:uppercase;letter-spacing:.05em;color:var(--ink-soft);margin-bottom:8px;display:block}
-#building-search-wrap{position:relative;max-width:460px}
-#building-search{width:100%;padding:11px 14px;border-radius:8px;border:1.5px solid var(--line);font-size:14.5px;font-family:inherit;outline:0}
-#building-search:focus{border-color:var(--accent)}
-#building-suggestions{position:absolute;top:calc(100% + 4px);left:0;right:0;background:#fff;border:1px solid var(--line);border-radius:8px;box-shadow:0 10px 24px #16232b1f;max-height:220px;overflow:auto;display:none;z-index:20}
-#building-suggestions.open{display:block}
-.sugg-row{padding:9px 14px;cursor:pointer;border-bottom:1px solid var(--line)}.sugg-row:hover{background:var(--bg)}
-.sugg-code{font:11px var(--font-mono);color:var(--accent)}.sugg-name{font-size:13.5px}
-#building-selected{display:none;margin-top:12px;align-items:center;justify-content:space-between;background:var(--teal-soft);border-radius:8px;padding:10px 14px}
-#building-selected .info{font-size:13.5px;line-height:1.5}#building-selected .info b{font-family:var(--font-mono);color:var(--teal)}
-#building-selected button{background:none;border:0;color:var(--ink-soft);font-size:12.5px;text-decoration:underline;cursor:pointer}
-#building-notfound{display:none;margin-top:12px;font-size:13.5px;color:var(--ink-soft)}
-#building-notfound button{margin-left:6px;background:var(--accent);color:#fff;border:0;padding:6px 12px;border-radius:6px;font-size:12.5px;cursor:pointer;font-weight:600}
-#new-building-form{display:none;margin-top:14px;padding:14px;background:var(--bg);border-radius:8px}
-#new-building-form .grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}.full{grid-column:1/-1}
-.field label{font-size:11px;color:var(--ink-soft)}.field input{width:100%;padding:8px;border:1px solid var(--line);border-radius:6px;margin-top:4px}
-#table-block{padding:18px 24px 30px;opacity:.4;pointer-events:none;transition:opacity .15s}
-#table-block.active{opacity:1;pointer-events:auto}
-.table-toolbar{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;gap:12px;flex-wrap:wrap}
-.table-toolbar .label{margin:0}.toolbar-buttons{display:flex;gap:8px;flex-wrap:wrap}
-.tbtn{padding:8px 14px;border-radius:7px;border:1.5px solid var(--line);background:#fff;font-size:13px;font-weight:600;cursor:pointer;color:var(--ink);white-space:nowrap}
-.tbtn:hover{border-color:var(--accent)}.tbtn.primary{background:var(--accent);border-color:var(--accent);color:#fff}
-.tbtn:disabled{opacity:.5;cursor:not-allowed}
-#save-all-btn{position:relative}.badge{display:none;background:#fff;color:var(--accent);font:700 11px var(--font-mono);border-radius:999px;padding:0 6px;margin-left:6px}
-#save-all-btn.has-pending .badge{display:inline-block}
-#pending-warning{display:none;font-size:12.5px;color:var(--accent);margin-bottom:10px}.show{display:block!important}
-#table-scroll{overflow:auto;border:1px solid var(--line);border-radius:10px;max-height:65vh}
-table{width:100%;min-width:1300px;border-collapse:collapse;font-size:13px;background:#fff}
-thead th{text-align:left;font-size:10.5px;text-transform:uppercase;letter-spacing:.04em;color:var(--ink-soft);padding:9px 8px;border-bottom:1.5px solid var(--line);background:var(--bg);white-space:nowrap}
-thead th.sortable{cursor:pointer;user-select:none}.sort-active{color:var(--accent)!important}.sort-arrow{display:inline-block;width:10px;margin-left:2px}
-#filter-row th{position:sticky;top:38px;background:#fff;padding:5px 6px;z-index:4;border-bottom:1.5px solid var(--line)}
-thead tr:first-child th{position:sticky;top:0;z-index:5}
-.filter-input{width:100%;min-width:64px;padding:6px 7px;border-radius:6px;border:1px solid var(--line);font:12px var(--font-display);outline:0}
-.filter-input:focus{border-color:var(--accent)}
-tbody td{padding:0;border-bottom:1px solid var(--line);border-right:1px solid #F1F3F3;vertical-align:middle}
-tbody tr:hover{background:#FAFBFA}tbody tr.dirty td{background:#FFF8ED}tbody tr.deleted td{background:#F7E9E6;text-decoration:line-through;opacity:.7}
-.cell-input,.cell-select{width:100%;min-width:70px;border:1.5px solid transparent;background:transparent;padding:9px 8px;font:13px var(--font-display);color:var(--ink);outline:0;border-radius:5px}
-input.cell-input[type=number]{text-align:right;font-family:var(--font-mono)}
-.cell-input:focus,.cell-select:focus{border-color:var(--accent);background:#fff;box-shadow:0 0 0 3px #e07b2e1f}
-td.col-nom .cell-input{min-width:160px}td.col-numero .cell-input{min-width:60px}td.col-niveau .cell-input{min-width:60px}td.col-surface .cell-input{min-width:80px}
-.cell-check-wrap{display:flex;align-items:center;justify-content:center;padding:9px 8px}.cell-check-wrap input{width:17px;height:17px;accent-color:var(--teal);cursor:pointer}
-.row-actions{display:flex;gap:2px;padding:4px;justify-content:center}.row-del{border:0;background:none;color:var(--ink-soft);font-size:14px;cursor:pointer;padding:7px;border-radius:5px}
-.row-del:hover{background:var(--danger-soft);color:var(--danger)}
-#empty-table{padding:30px;text-align:center;color:var(--ink-soft);font-size:13px}
-#toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%);background:var(--navy);color:#fff;padding:11px 20px;border-radius:8px;font-size:13.5px;box-shadow:0 8px 20px #0003;display:none;z-index:60}
-#loading{display:none;font-size:12px;color:var(--ink-soft);margin-left:8px}
+  :root{
+    --bg: #EEF1F0;
+    --ink: #16232B;
+    --ink-soft: #5E6C72;
+    --navy: #16232B;
+    --line: #DADFE0;
+    --card: #FFFFFF;
+    --accent: #E07B2E;
+    --teal: #2F7D6B;
+    --teal-soft: #E5F1EE;
+    --danger: #C0503D;
+    --danger-soft: #F7E9E6;
+    --radius: 10px;
+
+    /* POLICES LOCALES / SYSTEME UNIQUEMENT */
+    --font-display: Arial, Helvetica, sans-serif;
+    --font-mono: "Courier New", Courier, monospace;
+  }
+
+  * {
+    box-sizing: border-box;
+  }
+
+  html,
+  body {
+    height: 100%;
+    margin: 0;
+  }
+
+  body {
+    font-family: var(--font-display);
+    background: var(--bg);
+    color: var(--ink);
+  }
+
+  ::selection {
+    background: var(--accent);
+    color: #fff;
+  }
+
+  button,
+  input,
+  select {
+    font-family: var(--font-display);
+  }
+
+  /* ============================================================
+     STRUCTURE
+     ============================================================ */
+
+  #wrap {
+    max-width: 1500px;
+    margin: 0 auto;
+    padding: 24px 20px 60px;
+  }
+
+  #card {
+    background: var(--card);
+    border: 1px solid var(--line);
+    border-radius: 14px;
+    overflow: hidden;
+    box-shadow: 0 10px 30px rgba(22,35,43,0.06);
+  }
+
+  /* ============================================================
+     HEADER
+     ============================================================ */
+
+  #head {
+    background: var(--navy);
+    color: #fff;
+    padding: 18px 24px;
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 20px;
+  }
+
+  #head h1 {
+    margin: 0;
+    font-size: 18px;
+    font-weight: 600;
+    letter-spacing: 0.01em;
+  }
+
+  #head .sub {
+    font-family: var(--font-mono);
+    font-size: 12px;
+    color: rgba(255,255,255,0.55);
+  }
+
+  /* ============================================================
+     CHARGEMENT
+     ============================================================ */
+
+  #loading-banner {
+    display: none;
+    padding: 9px 24px;
+    background: #FFF8ED;
+    border-bottom: 1px solid #F0D6B5;
+    color: #9A5A1A;
+    font-size: 12.5px;
+  }
+
+  #loading-banner.show {
+    display: flex;
+    align-items: center;
+    gap: 9px;
+  }
+
+  .loading-spinner {
+    width: 14px;
+    height: 14px;
+    border: 2px solid rgba(224,123,46,0.25);
+    border-top-color: var(--accent);
+    border-radius: 50%;
+    animation: spin 0.75s linear infinite;
+    flex: 0 0 auto;
+  }
+
+  @keyframes spin {
+    to {
+      transform: rotate(360deg);
+    }
+  }
+
+  /* ============================================================
+     SELECTEUR BATIMENT
+     ============================================================ */
+
+  #building-block {
+    padding: 18px 24px;
+    border-bottom: 1px solid var(--line);
+  }
+
+  .label {
+    font-size: 11.5px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--ink-soft);
+    margin-bottom: 8px;
+    display: block;
+  }
+
+  #building-search-wrap {
+    position: relative;
+    max-width: 460px;
+  }
+
+  #building-search {
+    width: 100%;
+    padding: 11px 14px;
+    border-radius: 8px;
+    border: 1.5px solid var(--line);
+    font-size: 14.5px;
+    outline: none;
+    background: #fff;
+  }
+
+  #building-search:focus {
+    border-color: var(--accent);
+  }
+
+  #building-suggestions {
+    position: absolute;
+    top: calc(100% + 4px);
+    left: 0;
+    right: 0;
+    background: #fff;
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    box-shadow: 0 10px 24px rgba(22,35,43,0.12);
+    max-height: 220px;
+    overflow-y: auto;
+    display: none;
+    z-index: 20;
+  }
+
+  #building-suggestions.open {
+    display: block;
+  }
+
+  .sugg-row {
+    padding: 9px 14px;
+    cursor: pointer;
+    border-bottom: 1px solid var(--line);
+  }
+
+  .sugg-row:last-child {
+    border-bottom: none;
+  }
+
+  .sugg-row:hover {
+    background: var(--bg);
+  }
+
+  .sugg-code {
+    font-family: var(--font-mono);
+    font-size: 11px;
+    color: var(--accent);
+  }
+
+  .sugg-name {
+    font-size: 13.5px;
+  }
+
+  #building-selected {
+    display: none;
+    margin-top: 12px;
+    align-items: center;
+    justify-content: space-between;
+    gap: 15px;
+    background: var(--teal-soft);
+    border-radius: 8px;
+    padding: 10px 14px;
+  }
+
+  #building-selected .info {
+    font-size: 13.5px;
+    line-height: 1.5;
+  }
+
+  #building-selected .info b {
+    font-family: var(--font-mono);
+    color: var(--teal);
+  }
+
+  #building-selected button {
+    background: none;
+    border: none;
+    color: var(--ink-soft);
+    font-size: 12.5px;
+    text-decoration: underline;
+    cursor: pointer;
+  }
+
+  #building-notfound {
+    display: none;
+    margin-top: 12px;
+    font-size: 13.5px;
+    color: var(--ink-soft);
+  }
+
+  #building-notfound button {
+    margin-left: 6px;
+    background: var(--accent);
+    color: #fff;
+    border: none;
+    padding: 6px 12px;
+    border-radius: 6px;
+    font-size: 12.5px;
+    cursor: pointer;
+    font-weight: 600;
+  }
+
+  #new-building-form {
+    display: none;
+    margin-top: 14px;
+    padding: 14px;
+    background: var(--bg);
+    border-radius: 8px;
+  }
+
+  #new-building-form .grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+  }
+
+  #new-building-form .full {
+    grid-column: 1 / -1;
+  }
+
+  #new-building-form input {
+    width: 100%;
+    padding: 8px 10px;
+    border: 1px solid var(--line);
+    border-radius: 6px;
+    background: #fff;
+    outline: none;
+  }
+
+  #new-building-form input:focus {
+    border-color: var(--accent);
+  }
+
+  /* ============================================================
+     TABLEAU
+     ============================================================ */
+
+  #table-block {
+    padding: 18px 24px 30px;
+    opacity: 0.55;
+    pointer-events: none;
+    transition: opacity 0.15s ease;
+  }
+
+  #table-block.active {
+    opacity: 1;
+    pointer-events: auto;
+  }
+
+  .table-toolbar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 12px;
+    gap: 12px;
+    flex-wrap: wrap;
+  }
+
+  .table-toolbar .label {
+    margin-bottom: 0;
+  }
+
+  .toolbar-buttons {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+  }
+
+  .tbtn {
+    padding: 8px 14px;
+    border-radius: 7px;
+    border: 1.5px solid var(--line);
+    background: #fff;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    color: var(--ink);
+    white-space: nowrap;
+  }
+
+  .tbtn:hover {
+    border-color: var(--accent);
+  }
+
+  .tbtn.primary {
+    background: var(--accent);
+    border-color: var(--accent);
+    color: #fff;
+  }
+
+  .tbtn.primary:hover {
+    opacity: 0.92;
+  }
+
+  .tbtn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+
+  #table-scroll {
+    overflow-x: auto;
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    background: #fff;
+  }
+
+  table {
+    width: 100%;
+    min-width: 1300px;
+    border-collapse: collapse;
+    font-size: 13px;
+    background: #fff;
+  }
+
+  thead th {
+    position: sticky;
+    top: 0;
+    text-align: left;
+    font-size: 10.5px;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: var(--ink-soft);
+    padding: 9px 8px;
+    border-bottom: 1.5px solid var(--line);
+    background: var(--bg);
+    white-space: nowrap;
+    z-index: 5;
+  }
+
+  thead th.col-actions {
+    width: 50px;
+  }
+
+  thead th.sortable {
+    cursor: pointer;
+    user-select: none;
+  }
+
+  thead th.sortable:hover {
+    color: var(--ink);
+  }
+
+  thead th.sort-active {
+    color: var(--accent);
+  }
+
+  .sort-arrow {
+    display: inline-block;
+    width: 10px;
+    margin-left: 2px;
+    font-size: 10px;
+  }
+
+  #filter-row th {
+    position: sticky;
+    top: 30px;
+    background: #fff;
+    padding: 5px 6px;
+    z-index: 4;
+    border-bottom: 1.5px solid var(--line);
+  }
+
+  .filter-input {
+    width: 100%;
+    min-width: 64px;
+    padding: 6px 7px;
+    border-radius: 6px;
+    border: 1px solid var(--line);
+    font-size: 12px;
+    font-weight: 400;
+    text-transform: none;
+    letter-spacing: normal;
+    color: var(--ink);
+    outline: none;
+    background: #fff;
+  }
+
+  .filter-input:focus {
+    border-color: var(--accent);
+  }
+
+  tbody td {
+    padding: 0;
+    border-bottom: 1px solid var(--line);
+    border-right: 1px solid #F1F3F3;
+    vertical-align: middle;
+  }
+
+  tbody tr:hover {
+    background: #FAFBFA;
+  }
+
+  tbody tr.dirty td {
+    background: #FFF8ED;
+  }
+
+  tbody tr.saving td {
+    opacity: 0.55;
+  }
+
+  .cell-input,
+  .cell-select {
+    width: 100%;
+    min-width: 70px;
+    border: 1.5px solid transparent;
+    background: transparent;
+    padding: 9px 8px;
+    font-size: 13px;
+    color: var(--ink);
+    outline: none;
+    border-radius: 5px;
+  }
+
+  input.cell-input[type="number"] {
+    text-align: right;
+    font-family: var(--font-mono);
+  }
+
+  .cell-input:focus,
+  .cell-select:focus {
+    border-color: var(--accent);
+    background: #fff;
+    box-shadow: 0 0 0 3px rgba(224,123,46,0.12);
+  }
+
+  .cell-input:hover,
+  .cell-select:hover {
+    border-color: var(--line);
+  }
+
+  td.col-nom .cell-input {
+    min-width: 160px;
+    font-weight: 500;
+  }
+
+  td.col-numero .cell-input {
+    min-width: 60px;
+  }
+
+  td.col-niveau .cell-input {
+    min-width: 60px;
+  }
+
+  td.col-surface .cell-input {
+    min-width: 80px;
+  }
+
+  .cell-check-wrap {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 9px 8px;
+  }
+
+  .cell-check-wrap input {
+    width: 17px;
+    height: 17px;
+    accent-color: var(--teal);
+    cursor: pointer;
+  }
+
+  .row-actions {
+    display: flex;
+    gap: 2px;
+    padding: 4px;
+    justify-content: center;
+  }
+
+  .row-del {
+    border: none;
+    background: none;
+    color: var(--ink-soft);
+    font-size: 14px;
+    cursor: pointer;
+    padding: 7px;
+    border-radius: 5px;
+  }
+
+  .row-del:hover {
+    background: var(--danger-soft);
+    color: var(--danger);
+  }
+
+  /* ============================================================
+     SELECTS LAZY
+     ============================================================ */
+
+  .cell-select.lazy-reference {
+    cursor: pointer;
+  }
+
+  .cell-select.lazy-reference.loading {
+    color: var(--ink-soft);
+  }
+
+  /* ============================================================
+     SAUVEGARDE
+     ============================================================ */
+
+  #save-all-btn {
+    position: relative;
+  }
+
+  #save-all-badge {
+    display: none;
+    background: #fff;
+    color: var(--accent);
+    font-family: var(--font-mono);
+    font-size: 11px;
+    font-weight: 700;
+    border-radius: 999px;
+    padding: 0 6px;
+    margin-left: 6px;
+  }
+
+  #save-all-btn.has-pending #save-all-badge {
+    display: inline-block;
+  }
+
+  #pending-warning {
+    display: none;
+    font-size: 12.5px;
+    color: var(--accent);
+    margin-bottom: 10px;
+  }
+
+  #pending-warning.show {
+    display: block;
+  }
+
+  /* ============================================================
+     EMPTY
+     ============================================================ */
+
+  #empty-table {
+    padding: 30px 0;
+    text-align: center;
+    color: var(--ink-soft);
+    font-size: 13px;
+  }
+
+  /* ============================================================
+     TOAST
+     ============================================================ */
+
+  #toast {
+    position: fixed;
+    bottom: 24px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: var(--navy);
+    color: #fff;
+    padding: 11px 20px;
+    border-radius: 8px;
+    font-size: 13.5px;
+    box-shadow: 0 8px 20px rgba(0,0,0,0.2);
+    display: none;
+    z-index: 60;
+    max-width: 90%;
+  }
+
+  /* ============================================================
+     OVERLAY INITIAL
+     ============================================================ */
+
+  #initial-loading {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: rgba(238,241,240,0.72);
+    backdrop-filter: blur(1px);
+    z-index: 100;
+  }
+
+  #initial-loading.hidden {
+    display: none;
+  }
+
+  #initial-loading-card {
+    background: #fff;
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    padding: 18px 24px;
+    box-shadow: 0 10px 30px rgba(22,35,43,0.12);
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    font-size: 13px;
+  }
+
+  #page {
+    position: relative;
+    min-height: 500px;
+  }
+
+  /* ============================================================
+     RESPONSIVE
+     ============================================================ */
+
+  @media (max-width: 700px) {
+    #wrap {
+      padding: 10px;
+    }
+
+    #head,
+    #building-block,
+    #table-block {
+      padding-left: 14px;
+      padding-right: 14px;
+    }
+
+    #new-building-form .grid {
+      grid-template-columns: 1fr;
+    }
+  }
 </style>
 </head>
 
 <body>
+
 <div id="wrap">
-<div id="card">
-  <div id="head">
-    <h1>Saisie de pièces</h1>
-    <span class="sub" id="head-count"></span>
-  </div>
+  <div id="card">
 
-  <div id="building-block">
-    <label class="label" for="building-search">Sélectionner un bâtiment</label>
-    <div id="building-search-wrap">
-      <input id="building-search" type="text" placeholder="Rechercher par code ou nom de bâtiment…" autocomplete="off">
-      <div id="building-suggestions"></div>
-    </div>
+    <div id="page">
 
-    <div id="building-selected">
-      <div class="info"><b id="bs-code"></b> — <span id="bs-nom"></span><br><span id="bs-adresse"></span></div>
-      <button id="bs-change">Changer de bâtiment</button>
-    </div>
-
-    <div id="building-notfound">
-      Aucun bâtiment trouvé pour « <span id="nf-query"></span> ».
-      <button id="nf-create">+ Créer ce bâtiment</button>
-    </div>
-
-    <div id="new-building-form">
-      <div class="grid">
-        <div class="field"><label>Code bâtiment</label><input id="nb-code"></div>
-        <div class="field"><label>Nom du bâtiment</label><input id="nb-nom"></div>
-        <div class="field"><label>Adresse</label><input id="nb-adresse"></div>
-        <div class="field"><label>Ville</label><input id="nb-ville"></div>
-        <div class="field"><label>Code postal</label><input id="nb-cp"></div>
+      <!-- CHARGEMENT INITIAL -->
+      <div id="initial-loading">
+        <div id="initial-loading-card">
+          <div class="loading-spinner"></div>
+          <span id="initial-loading-text">Chargement des données…</span>
+        </div>
       </div>
-      <div style="margin-top:12px;display:flex;gap:8px">
-        <button class="tbtn primary" id="nb-save">Enregistrer le bâtiment</button>
-        <button class="tbtn" id="nb-cancel">Annuler</button>
+
+      <!-- HEADER -->
+      <div id="head">
+        <h1>Saisie de pièces</h1>
+        <span class="sub" id="head-count"></span>
       </div>
-    </div>
-  </div>
 
-  <div id="table-block">
-    <div class="table-toolbar">
-      <label class="label">Pièces du bâtiment — les modifications restent locales jusqu'à l'enregistrement général</label>
-      <div class="toolbar-buttons">
-        <button class="tbtn primary" id="save-all-btn" disabled>💾 Enregistrer tout <span class="badge" id="save-all-badge"></span></button>
-        <button class="tbtn" id="btn-add-row">+ Ajouter une ligne</button>
-        <button class="tbtn" id="btn-clear-filters">Réinitialiser filtres/tri</button>
-        <span id="loading">Enregistrement…</span>
+      <!-- PETITE BARRE DE CHARGEMENT -->
+      <div id="loading-banner">
+        <div class="loading-spinner"></div>
+        <span id="loading-banner-text">Actualisation des données…</span>
       </div>
+
+      <!-- ======================================================
+           SELECTEUR BATIMENT
+           ====================================================== -->
+
+      <div id="building-block">
+
+        <label class="label" for="building-search">
+          Sélectionner un bâtiment
+        </label>
+
+        <div id="building-search-wrap">
+
+          <input
+            id="building-search"
+            type="text"
+            placeholder="Rechercher par code ou nom de bâtiment…"
+            autocomplete="off"
+          >
+
+          <div id="building-suggestions"></div>
+
+        </div>
+
+        <div id="building-selected">
+
+          <div class="info">
+            <b id="bs-code"></b> —
+            <span id="bs-nom"></span>
+            <br>
+            <span id="bs-adresse"></span>
+          </div>
+
+          <button id="bs-change">
+            Changer de bâtiment
+          </button>
+
+        </div>
+
+        <div id="building-notfound">
+
+          Aucun bâtiment trouvé pour
+          « <span id="nf-query"></span> ».
+
+          <button id="nf-create">
+            + Créer ce bâtiment
+          </button>
+
+        </div>
+
+        <!-- CREATION BATIMENT -->
+
+        <div id="new-building-form">
+
+          <div class="grid">
+
+            <div class="field">
+              <label>Code bâtiment</label>
+              <input id="nb-code" type="text">
+            </div>
+
+            <div class="field">
+              <label>Nom du bâtiment</label>
+              <input id="nb-nom" type="text">
+            </div>
+
+            <div class="field">
+              <label>Adresse</label>
+              <input id="nb-adresse" type="text">
+            </div>
+
+            <div class="field">
+              <label>Ville</label>
+              <input id="nb-ville" type="text">
+            </div>
+
+            <div class="field">
+              <label>Code postal</label>
+              <input id="nb-cp" type="text">
+            </div>
+
+          </div>
+
+          <div style="margin-top:12px;display:flex;gap:8px;">
+
+            <button class="tbtn primary" id="nb-save">
+              Enregistrer le bâtiment
+            </button>
+
+            <button class="tbtn" id="nb-cancel">
+              Annuler
+            </button>
+
+          </div>
+
+        </div>
+
+      </div>
+
+      <!-- ======================================================
+           TABLEAU
+           ====================================================== -->
+
+      <div id="table-block">
+
+        <div class="table-toolbar">
+
+          <label class="label">
+            Pièces du bâtiment — modifiez les cellules puis enregistrez
+          </label>
+
+          <div class="toolbar-buttons">
+
+            <button
+              class="tbtn primary"
+              id="save-all-btn"
+              disabled
+            >
+              💾 Enregistrer les modifications
+              <span id="save-all-badge"></span>
+            </button>
+
+            <button
+              class="tbtn"
+              id="btn-add-row"
+            >
+              + Ajouter une ligne
+            </button>
+
+            <button
+              class="tbtn"
+              id="btn-clear-filters"
+            >
+              Réinitialiser filtres/tri
+            </button>
+
+          </div>
+
+        </div>
+
+        <div id="pending-warning">
+          Des modifications non enregistrées sont en cours —
+          le tableau ne se rafraîchira pas automatiquement tant que
+          vous n'avez pas cliqué sur « Enregistrer ».
+        </div>
+
+        <div id="table-scroll">
+
+          <table>
+
+            <thead>
+
+              <tr id="header-row">
+
+                <th
+                  class="col-niveau sortable"
+                  data-field="niveau"
+                >
+                  Étage
+                  <span class="sort-arrow"></span>
+                </th>
+
+                <th
+                  class="col-numero sortable"
+                  data-field="numero"
+                >
+                  Numéro du local
+                  <span class="sort-arrow"></span>
+                </th>
+
+                <th
+                  class="col-nom sortable"
+                  data-field="nom"
+                >
+                  Nom du local
+                  <span class="sort-arrow"></span>
+                </th>
+
+                <th
+                  class="sortable"
+                  data-field="typologie"
+                >
+                  Typologie
+                  <span class="sort-arrow"></span>
+                </th>
+
+                <th
+                  class="sortable"
+                  data-field="serviceRef"
+                >
+                  Service occupant
+                  <span class="sort-arrow"></span>
+                </th>
+
+                <th
+                  class="sortable"
+                  data-field="sousService"
+                >
+                  Sous-service
+                  <span class="sort-arrow"></span>
+                </th>
+
+                <th
+                  class="sortable"
+                  data-field="surface"
+                  style="text-align:right;"
+                >
+                  Surface du local (m²)
+                  <span class="sort-arrow"></span>
+                </th>
+
+                <th
+                  class="sortable"
+                  data-field="nbOccupant"
+                  style="text-align:right;"
+                >
+                  Occupants (inclus prestataires)
+                  <span class="sort-arrow"></span>
+                </th>
+
+                <th
+                  class="sortable"
+                  data-field="nbPdt"
+                  style="text-align:right;"
+                >
+                  Nb postes de travail existants
+                  <span class="sort-arrow"></span>
+                </th>
+
+                <th
+                  class="sortable"
+                  data-field="natureOperationnelle"
+                  style="text-align:center;"
+                >
+                  Nature opérationnelle
+                  <span class="sort-arrow"></span>
+                </th>
+
+                <th class="col-actions"></th>
+
+              </tr>
+
+              <!-- FILTRES -->
+
+              <tr id="filter-row">
+
+                <th>
+                  <input
+                    class="filter-input"
+                    data-field="niveau"
+                    placeholder="Filtrer…"
+                  >
+                </th>
+
+                <th>
+                  <input
+                    class="filter-input"
+                    data-field="numero"
+                    placeholder="Filtrer…"
+                  >
+                </th>
+
+                <th>
+                  <input
+                    class="filter-input"
+                    data-field="nom"
+                    placeholder="Filtrer…"
+                  >
+                </th>
+
+                <th>
+                  <select
+                    class="filter-input"
+                    data-field="typologie"
+                  >
+                    <option value="">Tous</option>
+                  </select>
+                </th>
+
+                <th>
+                  <select
+                    class="filter-input"
+                    data-field="serviceRef"
+                  >
+                    <option value="">Tous</option>
+                  </select>
+                </th>
+
+                <th>
+                  <input
+                    class="filter-input"
+                    data-field="sousService"
+                    placeholder="Filtrer…"
+                  >
+                </th>
+
+                <th>
+                  <input
+                    class="filter-input"
+                    data-field="surface"
+                    placeholder="Filtrer…"
+                  >
+                </th>
+
+                <th>
+                  <input
+                    class="filter-input"
+                    data-field="nbOccupant"
+                    placeholder="Filtrer…"
+                  >
+                </th>
+
+                <th>
+                  <input
+                    class="filter-input"
+                    data-field="nbPdt"
+                    placeholder="Filtrer…"
+                  >
+                </th>
+
+                <th>
+
+                  <select
+                    class="filter-input"
+                    data-field="natureOperationnelle"
+                  >
+                    <option value="">Tous</option>
+                    <option value="true">Oui</option>
+                    <option value="false">Non</option>
+                  </select>
+
+                </th>
+
+                <th class="col-actions"></th>
+
+              </tr>
+
+            </thead>
+
+            <tbody id="rows-body"></tbody>
+
+          </table>
+
+        </div>
+
+        <div id="empty-table">
+          Sélectionnez un bâtiment pour voir ses pièces.
+        </div>
+
+      </div>
+
     </div>
 
-    <div id="pending-warning">⚠ Des modifications sont en attente. Aucune écriture dans Grist n'est faite avant « Enregistrer tout ».</div>
-
-    <div id="table-scroll">
-      <table>
-        <thead>
-          <tr id="header-row">
-            <th class="sortable" data-field="niveau">Étage<span class="sort-arrow"></span></th>
-            <th class="sortable" data-field="numero">Numéro du local<span class="sort-arrow"></span></th>
-            <th class="sortable" data-field="nom">Nom du local<span class="sort-arrow"></span></th>
-            <th class="sortable" data-field="typologie">Typologie<span class="sort-arrow"></span></th>
-            <th class="sortable" data-field="serviceRef">Service occupant<span class="sort-arrow"></span></th>
-            <th class="sortable" data-field="sousService">Sous-service<span class="sort-arrow"></span></th>
-            <th class="sortable" data-field="surface" style="text-align:right">Surface du local (m²)<span class="sort-arrow"></span></th>
-            <th class="sortable" data-field="nbOccupant" style="text-align:right">Occupants (inclus prestataires)<span class="sort-arrow"></span></th>
-            <th class="sortable" data-field="nbPdt" style="text-align:right">Nb postes de travail existants<span class="sort-arrow"></span></th>
-            <th class="sortable" data-field="natureOperationnelle" style="text-align:center">Nature opérationnelle<span class="sort-arrow"></span></th>
-            <th style="width:60px"></th>
-          </tr>
-          <tr id="filter-row">
-            <th><input class="filter-input" data-field="niveau" placeholder="Filtrer…"></th>
-            <th><input class="filter-input" data-field="numero" placeholder="Filtrer…"></th>
-            <th><input class="filter-input" data-field="nom" placeholder="Filtrer…"></th>
-            <th><select class="filter-input" data-field="typologie"><option value="">Tous</option></select></th>
-            <th><select class="filter-input" data-field="serviceRef"><option value="">Tous</option></select></th>
-            <th><input class="filter-input" data-field="sousService" placeholder="Filtrer…"></th>
-            <th><input class="filter-input" data-field="surface" placeholder="Filtrer…"></th>
-            <th><input class="filter-input" data-field="nbOccupant" placeholder="Filtrer…"></th>
-            <th><input class="filter-input" data-field="nbPdt" placeholder="Filtrer…"></th>
-            <th><select class="filter-input" data-field="natureOperationnelle"><option value="">Tous</option><option value="true">Oui</option><option value="false">Non</option></select></th>
-            <th></th>
-          </tr>
-        </thead>
-        <tbody id="rows-body"></tbody>
-      </table>
-    </div>
-    <div id="empty-table" style="display:none"></div>
   </div>
 </div>
-</div>
+
 <div id="toast"></div>
 
+
 <script>
+
 /* ============================================================
-   CONFIGURATION — conserve les noms réels de ton document Grist
+   CONFIGURATION
    ============================================================ */
-const CONFIG={
-  tables:{inventaire:"BATIMENTS",pieces:"PIECES",services:"LIST_SERVICE",typologie:"TYPOLOGIE"},
-  inventaire:{id:"id",code:"code_batiment",nom:"nom_batiment",adresse:"adresse",ville:"ville",codePostal:"code_postal"},
-  pieces:{
-    id:"id",batimentRef:"code_batiment",niveau:"niveau",numero:"numero_local",nom:"nom_local",
-    typologie:"typologie_pie",serviceRef:"service_occupant",sousService:"sous_service",
-    surface:"surface",nbOccupant:"nb_occupant",nbPdt:"nb_pdt",natureOperationnelle:"nature_operationnelle",
-    numCat:"num_cat",nbResident:"nb_resident",pourcentageResident:"pourcentage_resident"
+
+const CONFIG = {
+
+  tables: {
+    inventaire: "BATIMENTS",
+    pieces: "PIECES",
+    services: "LIST_SERVICE",
+    typologie: "TYPOLOGIE"
   },
-  services:{id:"id_service",nom:"nom_service"},
-  typologie:{id:"ID_typo",label:"ID_typo"}
+
+  inventaire: {
+    id: "id",
+    code: "code_batiment",
+    nom: "nom_batiment",
+    adresse: "adresse",
+    ville: "ville",
+    codePostal: "code_postal",
+
+    sdp: "SDP",
+    sub: "SUB",
+    subRatio: "SUB_ratio",
+    sba: "SBA",
+    subSpecifique: "SUB_specifique",
+    autres: "autres"
+  },
+
+  pieces: {
+    id: "id",
+    batimentRef: "code_batiment",
+
+    niveau: "niveau",
+    numero: "numero_local",
+    nom: "nom_local",
+
+    typologie: "typologie_pie",
+    serviceRef: "service_occupant",
+
+    sousService: "sous_service",
+
+    surface: "surface",
+    nbOccupant: "nb_occupant",
+    nbPdt: "nb_pdt",
+
+    natureOperationnelle: "nature_operationnelle",
+
+    numCat: "num_cat",
+    nbResident: "nb_resident",
+    pourcentageResident: "pourcentage_resident"
+  },
+
+  services: {
+    id: "id_service",
+    nom: "nom_service"
+  },
+
+  typologie: {
+    id: "ID_typo",
+    label: "ID_typo"
+  }
+
 };
 
-/* ============================================================
-   ETAT LOCAL
-   IMPORTANT : aucune modification de la base n'est envoyée
-   pendant la saisie.
-   ============================================================ */
-let buildings=[],allPieces=[],services=[],typologies=[];
-let selectedBuilding=null;
-let pendingEdits=new Map();       // id réel -> {colonne: valeur}
-let pendingAdds=new Map();        // id temporaire -> objet local
-let pendingDeletes=new Set();     // ids réels à supprimer
-let tempId=0;
-let sortField="numero",sortDir="asc",filters={};
-let isSaving=false;
 
-/* ---------- utilitaires ---------- */
-function toRows(table){
-  if(!table?.id)return[];
-  const rows=[];
-  for(let i=0;i<table.id.length;i++){
-    const r={id:table.id[i]};
-    for(const k of Object.keys(table))if(k!=="id")r[k]=table[k][i];
-    rows.push(r);
+/* ============================================================
+   ETAT GLOBAL
+   ============================================================ */
+
+let buildings = [];
+let allPieces = [];
+let services = [];
+let typologies = [];
+
+let selectedBuilding = null;
+
+let pendingEdits = {};
+
+let savingIds = new Set();
+
+let sortField = "numero";
+let sortDir = "asc";
+
+let filters = {};
+
+let isInitialLoading = true;
+let isRefreshing = false;
+let refreshPromise = null;
+
+let referenceListsLoaded = false;
+
+
+/* ============================================================
+   UTILITAIRES
+   ============================================================ */
+
+/*
+ * Transforme le format colonne de Grist :
+ *
+ * {
+ *   id: [1,2,3],
+ *   nom: ["A","B","C"]
+ * }
+ *
+ * en :
+ *
+ * [
+ *   {id:1, nom:"A"},
+ *   {id:2, nom:"B"},
+ *   {id:3, nom:"C"}
+ * ]
+ */
+
+function toRows(table) {
+
+  if (!table || !Array.isArray(table.id)) {
+    return [];
   }
+
+  const rows = [];
+
+  for (let i = 0; i < table.id.length; i++) {
+
+    const row = {
+      id: table.id[i]
+    };
+
+    for (const key of Object.keys(table)) {
+
+      if (key === "id") {
+        continue;
+      }
+
+      row[key] = table[key][i];
+    }
+
+    rows.push(row);
+  }
+
   return rows;
 }
-function refId(v){return v&&typeof v==="object"?v.rowId:v}
-function esc(v){
-  return String(v??"").replace(/&/g,"&amp;").replace(/</g,"&lt;")
-    .replace(/>/g,"&gt;").replace(/"/g,"&quot;").replace(/'/g,"&#039;");
-}
-function fmtSurface(v){return (Number(v)||0).toLocaleString("fr-FR",{maximumFractionDigits:1})}
-function toast(msg){
-  const t=document.getElementById("toast");t.textContent=msg;t.style.display="block";
-  clearTimeout(toast.timer);toast.timer=setTimeout(()=>t.style.display="none",2200);
-}
-function hasPending(){
-  return pendingEdits.size>0||pendingAdds.size>0||pendingDeletes.size>0;
-}
-function getRowById(id){
-  if(String(id).startsWith("new_"))return pendingAdds.get(id);
-  return allPieces.find(r=>r.id===Number(id));
-}
-function getCellValue(row,field){
-  const col=CONFIG.pieces[field];
-  const id=row.id;
-  if(pendingEdits.has(id)&&Object.prototype.hasOwnProperty.call(pendingEdits.get(id),col))
-    return pendingEdits.get(id)[col];
-  return row[col];
-}
-function currentValue(row,col){
-  if(pendingEdits.has(row.id)&&Object.prototype.hasOwnProperty.call(pendingEdits.get(row.id),col))
-    return pendingEdits.get(row.id)[col];
-  return row[col];
-}
-function isDeleted(row){return !String(row.id).startsWith("new_")&&pendingDeletes.has(row.id)}
 
-/* ---------- chargement : un seul chargement initial / après sauvegarde ---------- */
-async function loadAll(){
-  const [inv,pcs,srv,typ]=await Promise.all([
-    grist.docApi.fetchTable(CONFIG.tables.inventaire),
-    grist.docApi.fetchTable(CONFIG.tables.pieces),
-    grist.docApi.fetchTable(CONFIG.tables.services),
-    grist.docApi.fetchTable(CONFIG.tables.typologie)
-  ]);
-  buildings=toRows(inv);allPieces=toRows(pcs);services=toRows(srv);typologies=toRows(typ);
-  populateFilterSelects();
-  if(selectedBuilding){
-    const fresh=buildings.find(b=>b.id===selectedBuilding.id);
-    if(fresh)selectedBuilding=fresh;
+
+/* Référence Grist */
+
+function refId(value) {
+
+  if (
+    value &&
+    typeof value === "object" &&
+    "rowId" in value
+  ) {
+    return value.rowId;
   }
-  if(selectedBuilding)renderRoomsTable();
+
+  return value;
 }
 
-function populateFilterSelects(){
-  const ts=document.querySelector('[data-field="typologie"]');
-  const ss=document.querySelector('[data-field="serviceRef"]');
-  if(ts){
-    const cur=ts.value;
-    ts.innerHTML='<option value="">Tous</option>'+typologies.map(t=>
-      `<option value="${esc(t.id)}">${esc(t[CONFIG.typologie.label]||"")}</option>`).join("");
-    ts.value=cur;
+
+/* Protection HTML */
+
+function escapeHtml(value) {
+
+  if (value === null || value === undefined) {
+    return "";
   }
-  if(ss){
-    const cur=ss.value;
-    ss.innerHTML='<option value="">Tous</option>'+services.map(s=>
-      `<option value="${esc(s.id)}">${esc(s[CONFIG.services.nom]||"")}</option>`).join("");
-    ss.value=cur;
-  }
+
+  return String(value)
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#039;");
 }
 
-/* ---------- bâtiment ---------- */
-const searchInput=document.getElementById("building-search");
-const suggBox=document.getElementById("building-suggestions");
 
-searchInput.addEventListener("input",()=>{
-  const q=searchInput.value.trim().toLowerCase();
-  document.getElementById("building-notfound").style.display="none";
-  document.getElementById("new-building-form").style.display="none";
-  if(!q){suggBox.classList.remove("open");return}
-  const c=CONFIG.inventaire;
-  const matches=buildings.filter(b=>
-    String(b[c.code]||"").toLowerCase().includes(q)||
-    String(b[c.nom]||"").toLowerCase().includes(q)).slice(0,8);
-  if(matches.length){
-    suggBox.innerHTML=matches.map(b=>`
-      <div class="sugg-row" data-id="${b.id}">
-        <div class="sugg-code">${esc(b[c.code])}</div>
-        <div class="sugg-name">${esc(b[c.nom]||"Sans nom")}</div>
-      </div>`).join("");
-    suggBox.classList.add("open");
-  }else{
-    suggBox.classList.remove("open");
-    document.getElementById("nf-query").textContent=searchInput.value.trim();
-    document.getElementById("building-notfound").style.display="block";
-  }
-});
-suggBox.addEventListener("click",e=>{
-  const row=e.target.closest(".sugg-row");if(row)selectBuilding(Number(row.dataset.id));
-});
+/* Toast */
 
-function selectBuilding(id){
-  const c=CONFIG.inventaire;
-  selectedBuilding=buildings.find(b=>b.id===id);
-  if(!selectedBuilding)return;
-  suggBox.classList.remove("open");searchInput.value="";
-  document.getElementById("building-notfound").style.display="none";
-  document.getElementById("building-selected").style.display="flex";
-  document.getElementById("bs-code").textContent=selectedBuilding[c.code]||"";
-  document.getElementById("bs-nom").textContent=selectedBuilding[c.nom]||"";
-  document.getElementById("bs-adresse").textContent=
-    [selectedBuilding[c.adresse],selectedBuilding[c.codePostal],selectedBuilding[c.ville]].filter(Boolean).join(", ");
-  resetFiltersAndSort(false);
-  document.getElementById("table-block").classList.add("active");
-  renderRoomsTable();
-}
-document.getElementById("bs-change").onclick=()=>{
-  if(hasPending()&&!confirm("Des modifications ne sont pas enregistrées. Changer de bâtiment les abandonnera. Continuer ?"))return;
-  clearPending();
-  selectedBuilding=null;
-  document.getElementById("building-selected").style.display="none";
-  document.getElementById("table-block").classList.remove("active");
-  document.getElementById("rows-body").innerHTML="";
-  document.getElementById("empty-table").style.display="block";
-  document.getElementById("empty-table").textContent="Sélectionnez un bâtiment pour voir ses pièces.";
-  document.getElementById("head-count").textContent="";
-};
+function showToast(message) {
 
-/* ---------- création bâtiment : reste indépendante car elle concerne BATIMENTS,
-   mais aucun ajout de pièce n'est envoyé automatiquement ---------- */
-document.getElementById("nf-create").onclick=()=>{
-  document.getElementById("nb-code").value=searchInput.value.trim();
-  document.getElementById("new-building-form").style.display="block";
-};
-document.getElementById("nb-cancel").onclick=()=>document.getElementById("new-building-form").style.display="none";
-document.getElementById("nb-save").onclick=async()=>{
-  const c=CONFIG.inventaire;
-  const code=document.getElementById("nb-code").value.trim(),nom=document.getElementById("nb-nom").value.trim();
-  if(!code||!nom){toast("Code et nom du bâtiment sont requis.");return}
-  try{
-    const res=await grist.docApi.applyUserActions([["AddRecord",CONFIG.tables.inventaire,null,{
-      [c.code]:code,[c.nom]:nom,[c.adresse]:document.getElementById("nb-adresse").value.trim(),
-      [c.ville]:document.getElementById("nb-ville").value.trim(),[c.codePostal]:document.getElementById("nb-cp").value.trim()
-    }]]);
-    await loadAll();selectBuilding(res.retValues[0]);
-    document.getElementById("new-building-form").style.display="none";toast("Bâtiment créé.");
-  }catch(e){console.error(e);toast("Erreur lors de la création du bâtiment.")}
-};
+  const toast = document.getElementById("toast");
 
-/* ---------- tri / filtres ---------- */
-function getRoomsForBuilding(){
-  const p=CONFIG.pieces;
-  const base=allPieces.filter(r=>refId(r[p.batimentRef])===selectedBuilding.id&&!pendingDeletes.has(r.id));
-  for(const r of pendingAdds.values()){
-    if(refId(r[p.batimentRef])===selectedBuilding.id)base.push(r);
-  }
-  return base;
-}
-function sortValue(r,f){
-  const raw=getCellValue(r,f);
-  if(f==="typologie"){
-    const x=typologies.find(t=>t.id===refId(raw));return x?.[CONFIG.typologie.label]||"";
-  }
-  if(f==="serviceRef"){
-    const x=services.find(s=>s.id===refId(raw));return x?.[CONFIG.services.nom]||"";
-  }
-  if(f==="natureOperationnelle")return raw===true?1:0;
-  return raw;
-}
-function matchesFilters(r){
-  for(const f in filters){
-    const fv=filters[f];if(!fv)continue;
-    const raw=getCellValue(r,f);
-    if(f==="typologie"||f==="serviceRef"){
-      if(String(refId(raw)??"")!==String(fv))return false;
-    }else if(f==="natureOperationnelle"){
-      if(String(raw===true)!==fv)return false;
-    }else if(!String(raw??"").toLowerCase().includes(String(fv).toLowerCase()))return false;
-  }
-  return true;
-}
-function getDisplayedRows(){
-  const all=getRoomsForBuilding(),rows=all.filter(matchesFilters);
-  rows.sort((a,b)=>{
-    const av=sortValue(a,sortField),bv=sortValue(b,sortField);
-    const na=Number(av),nb=Number(bv);
-    const cmp=(!Number.isNaN(na)&&!Number.isNaN(nb)&&av!==""&&bv!=="")?na-nb:
-      String(av??"").localeCompare(String(bv??""),"fr",{numeric:true,sensitivity:"base"});
-    return sortDir==="asc"?cmp:-cmp;
-  });
-  return {all,rows};
-}
-function updateSortIndicators(){
-  document.querySelectorAll("#header-row th.sortable").forEach(th=>{
-    const active=th.dataset.field===sortField;th.classList.toggle("sort-active",active);
-    th.querySelector(".sort-arrow").textContent=active?(sortDir==="asc"?"▲":"▼"):"";
-  });
-}
-function resetFiltersAndSort(rerender=true){
-  filters={};sortField="numero";sortDir="asc";
-  document.querySelectorAll("#filter-row .filter-input").forEach(e=>e.value="");
-  updateSortIndicators();if(rerender&&selectedBuilding)renderRoomsTable();
-}
-document.querySelectorAll("#header-row th.sortable").forEach(th=>th.onclick=()=>{
-  if(sortField===th.dataset.field)sortDir=sortDir==="asc"?"desc":"asc";
-  else{sortField=th.dataset.field;sortDir="asc"}
-  updateSortIndicators();renderRoomsTable();
-});
-document.querySelectorAll("#filter-row .filter-input").forEach(el=>{
-  el.addEventListener(el.tagName==="SELECT"?"change":"input",()=>{
-    filters[el.dataset.field]=el.value;
-    renderRoomsTable();
-  });
-});
-document.getElementById("btn-clear-filters").onclick=()=>resetFiltersAndSort(true);
+  toast.textContent = message;
+  toast.style.display = "block";
 
-/* ---------- rendu ---------- */
-function optionsHtml(list,labelKey,idKey,current){
-  return '<option value="">—</option>'+list.map(x=>
-    `<option value="${esc(x[idKey])}" ${String(current??"")===String(x[idKey])?"selected":""}>${esc(x[labelKey]||"")}</option>`).join("");
-}
-function rowValue(r,col){
-  return esc(currentValue(r,col)??"");
-}
-function renderRoomsTable(){
-  if(!selectedBuilding)return;
-  const p=CONFIG.pieces,{all,rows}=getDisplayedRows();
-  const tbody=document.getElementById("rows-body"),empty=document.getElementById("empty-table");
-  document.getElementById("head-count").textContent=rows.length?
-    `${rows.length} pièce(s) · ${fmtSurface(rows.reduce((s,r)=>s+(Number(getCellValue(r,"surface"))||0),0))} m²`:"";
-  if(!rows.length){
-    tbody.innerHTML="";empty.style.display="block";
-    empty.textContent=all.length?"Aucune pièce ne correspond aux filtres actuels.":"Aucune pièce saisie pour ce bâtiment. Cliquez sur « + Ajouter une ligne ».";
-    updatePendingUI();return;
-  }
-  empty.style.display="none";
-  const html=rows.map(r=>{
-    const isNew=String(r.id).startsWith("new_"),dirty=pendingEdits.has(r.id)||isNew;
-    const isOp=getCellValue(r,"natureOperationnelle")===true;
-    return `<tr data-id="${esc(r.id)}" class="${dirty?"dirty":""}">
-      <td><input class="cell-input" data-field="${p.niveau}" value="${rowValue(r,p.niveau)}"></td>
-      <td class="col-numero"><input class="cell-input" data-field="${p.numero}" value="${rowValue(r,p.numero)}"></td>
-      <td class="col-nom"><input class="cell-input" data-field="${p.nom}" value="${rowValue(r,p.nom)}"></td>
-      <td><select class="cell-select" data-field="${p.typologie}" data-ref="true">${optionsHtml(typologies,CONFIG.typologie.label,CONFIG.typologie.id,refId(getCellValue(r,"typologie")))}</select></td>
-      <td><select class="cell-select" data-field="${p.serviceRef}" data-ref="true">${optionsHtml(services,CONFIG.services.nom,CONFIG.services.id,refId(getCellValue(r,"serviceRef")))}</select></td>
-      <td><input class="cell-input" data-field="${p.sousService}" value="${rowValue(r,p.sousService)}"></td>
-      <td><input class="cell-input" data-field="${p.surface}" type="number" step="0.1" min="0" value="${rowValue(r,p.surface)}"></td>
-      <td><input class="cell-input" data-field="${p.nbOccupant}" type="number" step="1" min="0" value="${rowValue(r,p.nbOccupant)}"></td>
-      <td><input class="cell-input" data-field="${p.nbPdt}" type="number" step="1" min="0" value="${rowValue(r,p.nbPdt)}"></td>
-      <td><div class="cell-check-wrap"><input type="checkbox" data-field="${p.natureOperationnelle}" data-bool="true" ${isOp?"checked":""}></div></td>
-      <td><div class="row-actions"><button class="row-del" type="button" title="Supprimer de la saisie">✕</button></div></td>
-    </tr>`;
-  }).join("");
-  tbody.innerHTML=html;
-  updatePendingUI();
+  clearTimeout(showToast._timer);
+
+  showToast._timer = setTimeout(() => {
+    toast.style.display = "none";
+  }, 2500);
 }
 
-/* ---------- délégation d'événements :
-   un seul écouteur sur tbody = beaucoup moins de travail DOM ---------- */
-const tbody=document.getElementById("rows-body");
-tbody.addEventListener("input",e=>{
-  if(e.target.matches(".cell-input")&&e.target.type!=="number")markDirty(e.target);
-});
-tbody.addEventListener("change",e=>{
-  if(e.target.matches(".cell-input,.cell-select,[data-bool]"))markDirty(e.target);
-});
-tbody.addEventListener("click",e=>{
-  const del=e.target.closest(".row-del");if(del)deleteRowLocal(del.closest("tr").dataset.id);
-});
 
-function readFieldValue(el){
-  if(el.dataset.bool==="true")return el.checked;
-  if(el.dataset.ref==="true")return el.value?Number(el.value):null;
-  if(el.type==="number")return el.value===""?null:Number(el.value);
-  return el.value.trim();
-}
-function markDirty(el){
-  const tr=el.closest("tr"),id=tr.dataset.id,field=el.dataset.field,value=readFieldValue(el);
-  if(String(id).startsWith("new_")){
-    const r=pendingAdds.get(id);r[field]=value;
-  }else{
-    if(!pendingEdits.has(Number(id)))pendingEdits.set(Number(id),{});
-    pendingEdits.get(Number(id))[field]=value;
-  }
-  tr.classList.add("dirty");
-  updatePendingUI();
-}
+/* Surface */
 
-/* ---------- ajout / suppression : 100 % local ---------- */
-document.getElementById("btn-add-row").onclick=()=>{
-  if(!selectedBuilding)return;
-  const p=CONFIG.pieces,id=`new_${++tempId}`;
-  const r={id};
-  r[p.batimentRef]=selectedBuilding.id;
-  r[p.nom]="Nouvelle pièce";
-  r[p.natureOperationnelle]=false;
-  pendingAdds.set(id,r);
-  renderRoomsTable();
-  requestAnimationFrame(()=>{
-    const tr=document.querySelector(`tr[data-id="${CSS.escape(id)}"]`);
-    const input=tr?.querySelector(".col-numero .cell-input")||tr?.querySelector(".cell-input");
-    if(input){input.focus();input.select()}
-  });
-  updatePendingUI();
-};
-function deleteRowLocal(id){
-  const r=getRowById(id);if(!r)return;
-  if(!confirm("Supprimer cette pièce de la saisie ? Elle ne sera réellement supprimée de Grist qu'après « Enregistrer tout »."))
-    return;
-  if(String(id).startsWith("new_")){
-    pendingAdds.delete(id);
-  }else{
-    pendingDeletes.add(Number(id));pendingEdits.delete(Number(id));
-  }
-  renderRoomsTable();updatePendingUI();
-}
+function fmtSurface(value) {
 
-/* ---------- indicateurs ---------- */
-function updatePendingUI(){
-  const n=pendingEdits.size+pendingAdds.size+pendingDeletes.size;
-  const btn=document.getElementById("save-all-btn"),badge=document.getElementById("save-all-badge");
-  btn.disabled=n===0||isSaving;btn.classList.toggle("has-pending",n>0);badge.textContent=n||"";
-  document.getElementById("pending-warning").classList.toggle("show",n>0);
-}
+  const number = Number(value) || 0;
 
-/* ---------- ENREGISTREMENT GENERAL UNIQUE ----------
-   Une seule opération applyUserActions pour toutes les écritures.
-   Aucun UpdateRecord au fil de la saisie.
-   ---------- */
-async function saveAll(){
-  if(isSaving||!hasPending())return;
-  if(!selectedBuilding)return;
-  isSaving=true;updatePendingUI();
-  document.getElementById("loading").style.display="inline";
-  document.getElementById("save-all-btn").textContent="💾 Enregistrement…";
-
-  /* Copie figée de l'état local : évite qu'une saisie concurrente
-     modifie les objets pendant l'appel réseau. */
-  const edits=new Map(pendingEdits),adds=new Map(pendingAdds),deletes=new Set(pendingDeletes);
-  const p=CONFIG.pieces,actions=[];
-
-  try{
-    /* 1. suppressions */
-    for(const id of deletes)actions.push(["RemoveRecord",CONFIG.tables.pieces,id]);
-
-    /* 2. modifications */
-    for(const [id,changes] of edits){
-      if(!deletes.has(Number(id))&&Object.keys(changes).length)
-        actions.push(["UpdateRecord",CONFIG.tables.pieces,Number(id),changes]);
+  return number.toLocaleString(
+    "fr-FR",
+    {
+      maximumFractionDigits: 1
     }
+  );
+}
 
-    /* 3. nouvelles pièces */
-    for(const r of adds.values()){
-      const values={};
-      for(const [k,v] of Object.entries(r)){
-        if(k!=="id"&&v!==undefined&&v!==null&&v!=="")values[k]=v;
+
+/* ============================================================
+   INDICATEURS DE CHARGEMENT
+   ============================================================ */
+
+function setInitialLoading(show, message = "Chargement des données…") {
+
+  const overlay =
+    document.getElementById("initial-loading");
+
+  const text =
+    document.getElementById("initial-loading-text");
+
+  text.textContent = message;
+
+  overlay.classList.toggle(
+    "hidden",
+    !show
+  );
+}
+
+
+function setLoading(show, message = "Actualisation des données…") {
+
+  const banner =
+    document.getElementById("loading-banner");
+
+  const text =
+    document.getElementById("loading-banner-text");
+
+  text.textContent = message;
+
+  banner.classList.toggle(
+    "show",
+    show
+  );
+}
+
+
+/* ============================================================
+   CHARGEMENT INITIAL
+   ============================================================ */
+
+/*
+ * IMPORTANT :
+ *
+ * On ne fait plus plusieurs loadAll() simultanés.
+ *
+ * Le premier chargement est effectué une seule fois.
+ */
+
+async function initialLoad() {
+
+  if (!isInitialLoading) {
+    return;
+  }
+
+  try {
+
+    setInitialLoading(
+      true,
+      "Chargement des données…"
+    );
+
+    /*
+     * Les données sont chargées en parallèle.
+     *
+     * Le problème des 45 secondes ne venait pas principalement
+     * de ces fetchTable(), mais du rendu massif des <option>.
+     */
+
+    const [
+      inv,
+      pcs,
+      srv,
+      typ
+    ] = await Promise.all([
+
+      grist.docApi.fetchTable(
+        CONFIG.tables.inventaire
+      ),
+
+      grist.docApi.fetchTable(
+        CONFIG.tables.pieces
+      ),
+
+      grist.docApi.fetchTable(
+        CONFIG.tables.services
+      ),
+
+      grist.docApi.fetchTable(
+        CONFIG.tables.typologie
+      )
+
+    ]);
+
+    buildings = toRows(inv);
+    allPieces = toRows(pcs);
+    services = toRows(srv);
+    typologies = toRows(typ);
+
+    referenceListsLoaded = true;
+
+    populateFilterSelects();
+
+    isInitialLoading = false;
+
+    setInitialLoading(false);
+
+    /*
+     * Si un bâtiment avait déjà été sélectionné,
+     * on remet le tableau à jour.
+     */
+
+    if (selectedBuilding) {
+
+      const fresh =
+        buildings.find(
+          b => b.id === selectedBuilding.id
+        );
+
+      if (fresh) {
+        selectedBuilding = fresh;
       }
-      actions.push(["AddRecord",CONFIG.tables.pieces,null,values]);
+
+      renderRoomsTable();
     }
 
-    if(actions.length)await grist.docApi.applyUserActions(actions);
+  } catch (error) {
 
-    clearPending();
-    await loadAll();
-    toast(`${actions.length} opération(s) enregistrée(s) dans Grist.`);
-  }catch(err){
-    console.error(err);
-    toast("Échec de l'enregistrement : aucune nouvelle saisie locale n'a été effacée.");
-  }finally{
-    isSaving=false;
-    document.getElementById("loading").style.display="none";
-    document.getElementById("save-all-btn").innerHTML='💾 Enregistrer tout <span class="badge" id="save-all-badge"></span>';
-    updatePendingUI();
-    if(selectedBuilding)renderRoomsTable();
+    console.error(
+      "Erreur chargement initial :",
+      error
+    );
+
+    setInitialLoading(
+      false
+    );
+
+    showToast(
+      "Impossible de charger les données Grist."
+    );
   }
-}
-document.getElementById("save-all-btn").onclick=saveAll;
 
-function clearPending(){
-  pendingEdits.clear();pendingAdds.clear();pendingDeletes.clear();
-  updatePendingUI();
 }
 
-/* ---------- démarrage Grist ----------
-   Si Grist signale une modification externe pendant une saisie,
-   on NE recharge PAS : cela évite de casser le contenu du formulaire.
-   ---------- */
-grist.ready({requiredAccess:"full"});
-let firstLoad=true;
-grist.onRecords(()=>{
-  if(firstLoad){firstLoad=false;return}
-  if(hasPending()){
-    document.getElementById("pending-warning").classList.add("show");
+
+/* ============================================================
+   RAFRAICHISSEMENT DES PIECES UNIQUEMENT
+   ============================================================ */
+
+/*
+ * Lorsqu'une modification externe intervient dans Grist,
+ * on ne recharge PAS automatiquement les quatre tables.
+ *
+ * On recharge uniquement PIECES.
+ */
+
+async function refreshPiecesOnly() {
+
+  if (refreshPromise) {
+    return refreshPromise;
+  }
+
+  refreshPromise = (async () => {
+
+    try {
+
+      setLoading(
+        true,
+        "Actualisation des pièces…"
+      );
+
+      const pcs =
+        await grist.docApi.fetchTable(
+          CONFIG.tables.pieces
+        );
+
+      allPieces = toRows(pcs);
+
+      if (selectedBuilding) {
+        renderRoomsTable();
+      }
+
+    } catch (error) {
+
+      console.error(
+        "Erreur actualisation pièces :",
+        error
+      );
+
+    } finally {
+
+      setLoading(false);
+
+      refreshPromise = null;
+    }
+
+  })();
+
+  return refreshPromise;
+}
+
+
+/* ============================================================
+   FILTRES DE REFERENCES
+   ============================================================ */
+
+/*
+ * Les listes de filtre du haut sont remplies une seule fois.
+ *
+ * Elles ne sont pas reconstruites à chaque rendu du tableau.
+ */
+
+function populateFilterSelects() {
+
+  const typoSelect =
+    document.querySelector(
+      '.filter-input[data-field="typologie"]'
+    );
+
+  const serviceSelect =
+    document.querySelector(
+      '.filter-input[data-field="serviceRef"]'
+    );
+
+
+  if (typoSelect) {
+
+    const current =
+      typoSelect.value;
+
+    typoSelect.innerHTML =
+      '<option value="">Tous</option>' +
+
+      typologies.map(t => {
+
+        return `
+          <option value="${escapeHtml(t.id)}">
+            ${escapeHtml(
+              t[CONFIG.typologie.label] || ""
+            )}
+          </option>
+        `;
+
+      }).join("");
+
+    typoSelect.value = current;
+  }
+
+
+  if (serviceSelect) {
+
+    const current =
+      serviceSelect.value;
+
+    serviceSelect.innerHTML =
+      '<option value="">Tous</option>' +
+
+      services.map(s => {
+
+        return `
+          <option value="${escapeHtml(s.id)}">
+            ${escapeHtml(
+              s[CONFIG.services.nom] || ""
+            )}
+          </option>
+        `;
+
+      }).join("");
+
+    serviceSelect.value = current;
+  }
+
+}
+
+
+/* ============================================================
+   RECHERCHE BATIMENT
+   ============================================================ */
+
+const searchInput =
+  document.getElementById(
+    "building-search"
+  );
+
+const suggBox =
+  document.getElementById(
+    "building-suggestions"
+  );
+
+
+searchInput.addEventListener(
+  "input",
+  () => {
+
+    const query =
+      searchInput.value
+        .trim()
+        .toLowerCase();
+
+    document
+      .getElementById("building-notfound")
+      .style.display = "none";
+
+    document
+      .getElementById("new-building-form")
+      .style.display = "none";
+
+
+    if (!query) {
+
+      suggBox.classList.remove("open");
+
+      return;
+    }
+
+
+    const c =
+      CONFIG.inventaire;
+
+
+    const matches =
+      buildings
+        .filter(building => {
+
+          return (
+
+            String(
+              building[c.code] || ""
+            )
+              .toLowerCase()
+              .includes(query)
+
+            ||
+
+            String(
+              building[c.nom] || ""
+            )
+              .toLowerCase()
+              .includes(query)
+
+          );
+
+        })
+        .slice(0, 8);
+
+
+    if (!matches.length) {
+
+      suggBox.classList.remove(
+        "open"
+      );
+
+      document
+        .getElementById("nf-query")
+        .textContent =
+        searchInput.value.trim();
+
+      document
+        .getElementById("building-notfound")
+        .style.display = "block";
+
+      return;
+    }
+
+
+    suggBox.innerHTML =
+      matches.map(building => {
+
+        return `
+          <div
+            class="sugg-row"
+            data-id="${escapeHtml(building.id)}"
+          >
+            <div class="sugg-code">
+              ${escapeHtml(
+                building[c.code] || ""
+              )}
+            </div>
+
+            <div class="sugg-name">
+              ${escapeHtml(
+                building[c.nom] || "Sans nom"
+              )}
+            </div>
+          </div>
+        `;
+
+      }).join("");
+
+
+    suggBox.classList.add("open");
+
+
+    suggBox
+      .querySelectorAll(".sugg-row")
+      .forEach(element => {
+
+        element.addEventListener(
+          "click",
+          () => {
+
+            selectBuilding(
+              Number(
+                element.dataset.id
+              )
+            );
+
+          }
+        );
+
+      });
+
+  }
+);
+
+
+/* ============================================================
+   CREATION BATIMENT
+   ============================================================ */
+
+document
+  .getElementById("nf-create")
+  .addEventListener(
+    "click",
+    () => {
+
+      document
+        .getElementById("nb-code")
+        .value =
+        searchInput.value.trim();
+
+      document
+        .getElementById("new-building-form")
+        .style.display = "block";
+
+    }
+  );
+
+
+document
+  .getElementById("nb-cancel")
+  .addEventListener(
+    "click",
+    () => {
+
+      document
+        .getElementById("new-building-form")
+        .style.display = "none";
+
+    }
+  );
+
+
+document
+  .getElementById("nb-save")
+  .addEventListener(
+    "click",
+    async () => {
+
+      const c =
+        CONFIG.inventaire;
+
+      const code =
+        document
+          .getElementById("nb-code")
+          .value
+          .trim();
+
+      const nom =
+        document
+          .getElementById("nb-nom")
+          .value
+          .trim();
+
+
+      if (!code || !nom) {
+
+        showToast(
+          "Code et nom du bâtiment sont requis."
+        );
+
+        return;
+      }
+
+
+      try {
+
+        const result =
+          await grist.docApi.applyUserActions([
+
+            [
+              "AddRecord",
+              CONFIG.tables.inventaire,
+              null,
+              {
+
+                [c.code]:
+                  code,
+
+                [c.nom]:
+                  nom,
+
+                [c.adresse]:
+                  document
+                    .getElementById("nb-adresse")
+                    .value
+                    .trim(),
+
+                [c.ville]:
+                  document
+                    .getElementById("nb-ville")
+                    .value
+                    .trim(),
+
+                [c.codePostal]:
+                  document
+                    .getElementById("nb-cp")
+                    .value
+                    .trim()
+
+              }
+            ]
+
+          ]);
+
+
+        /*
+         * Pas de loadAll().
+         *
+         * On ajoute directement le nouveau bâtiment
+         * à notre mémoire locale.
+         */
+
+        const newId =
+          result.retValues[0];
+
+
+        buildings.push({
+
+          id: newId,
+
+          [c.code]: code,
+
+          [c.nom]: nom,
+
+          [c.adresse]:
+            document
+              .getElementById("nb-adresse")
+              .value
+              .trim(),
+
+          [c.ville]:
+            document
+              .getElementById("nb-ville")
+              .value
+              .trim(),
+
+          [c.codePostal]:
+            document
+              .getElementById("nb-cp")
+              .value
+              .trim()
+
+        });
+
+
+        document
+          .getElementById("new-building-form")
+          .style.display = "none";
+
+
+        selectBuilding(newId);
+
+        showToast(
+          "Bâtiment créé."
+        );
+
+
+      } catch (error) {
+
+        console.error(error);
+
+        showToast(
+          "Erreur lors de la création du bâtiment."
+        );
+
+      }
+
+    }
+  );
+
+
+/* ============================================================
+   SELECTION BATIMENT
+   ============================================================ */
+
+function selectBuilding(id) {
+
+  const c =
+    CONFIG.inventaire;
+
+
+  selectedBuilding =
+    buildings.find(
+      building =>
+        Number(building.id) === Number(id)
+    );
+
+
+  if (!selectedBuilding) {
+
+    showToast(
+      "Bâtiment introuvable."
+    );
+
     return;
   }
-  loadAll().catch(e=>console.error(e));
+
+
+  suggBox.classList.remove("open");
+
+  document
+    .getElementById("building-notfound")
+    .style.display = "none";
+
+  searchInput.value = "";
+
+
+  document
+    .getElementById("building-selected")
+    .style.display = "flex";
+
+
+  document
+    .getElementById("bs-code")
+    .textContent =
+    selectedBuilding[c.code] || "";
+
+
+  document
+    .getElementById("bs-nom")
+    .textContent =
+    selectedBuilding[c.nom] || "";
+
+
+  document
+    .getElementById("bs-adresse")
+    .textContent =
+    [
+      selectedBuilding[c.adresse],
+      selectedBuilding[c.codePostal],
+      selectedBuilding[c.ville]
+    ]
+      .filter(Boolean)
+      .join(", ");
+
+
+  /*
+   * Le tableau devient immédiatement actif.
+   */
+
+  document
+    .getElementById("table-block")
+    .classList.add("active");
+
+
+  resetFiltersAndSort(false);
+
+  renderRoomsTable();
+
+}
+
+
+/* ============================================================
+   CHANGEMENT BATIMENT
+   ============================================================ */
+
+document
+  .getElementById("bs-change")
+  .addEventListener(
+    "click",
+    () => {
+
+      if (
+        Object.keys(pendingEdits).length > 0
+      ) {
+
+        const confirmChange =
+          confirm(
+            "Des modifications ne sont pas enregistrées. Voulez-vous vraiment changer de bâtiment et les perdre ?"
+          );
+
+        if (!confirmChange) {
+          return;
+        }
+
+        pendingEdits = {};
+
+        updateSaveAllButton();
+        updatePendingWarning();
+      }
+
+
+      selectedBuilding = null;
+
+
+      document
+        .getElementById("building-selected")
+        .style.display = "none";
+
+
+      document
+        .getElementById("table-block")
+        .classList.remove("active");
+
+
+      document
+        .getElementById("rows-body")
+        .innerHTML = "";
+
+
+      document
+        .getElementById("empty-table")
+        .style.display = "block";
+
+
+      document
+        .getElementById("empty-table")
+        .textContent =
+        "Sélectionnez un bâtiment pour voir ses pièces.";
+
+
+      document
+        .getElementById("head-count")
+        .textContent = "";
+
+    }
+  );
+
+
+/* ============================================================
+   VALEURS
+   ============================================================ */
+
+function getCellValue(row, field) {
+
+  const column =
+    CONFIG.pieces[field];
+
+  const overrides =
+    pendingEdits[row.id];
+
+
+  if (
+    overrides &&
+    column in overrides
+  ) {
+
+    return overrides[column];
+
+  }
+
+
+  return row[column];
+
+}
+
+
+/* ============================================================
+   TRI
+   ============================================================ */
+
+function getSortValue(row, field) {
+
+  const raw =
+    getCellValue(
+      row,
+      field
+    );
+
+
+  if (field === "typologie") {
+
+    const typology =
+      typologies.find(
+        t =>
+          Number(t.id) ===
+          Number(refId(raw))
+      );
+
+
+    return typology
+      ? typology[
+          CONFIG.typologie.label
+        ] || ""
+      : "";
+
+  }
+
+
+  if (field === "serviceRef") {
+
+    const service =
+      services.find(
+        s =>
+          Number(s.id) ===
+          Number(refId(raw))
+      );
+
+
+    return service
+      ? service[
+          CONFIG.services.nom
+        ] || ""
+      : "";
+
+  }
+
+
+  if (
+    field === "natureOperationnelle"
+  ) {
+
+    return raw === true
+      ? 1
+      : 0;
+
+  }
+
+
+  return raw;
+
+}
+
+
+/* ============================================================
+   FILTRES
+   ============================================================ */
+
+function matchesFilters(row) {
+
+  for (
+    const field in filters
+  ) {
+
+    const filterValue =
+      filters[field];
+
+
+    if (
+      filterValue === "" ||
+      filterValue == null
+    ) {
+
+      continue;
+    }
+
+
+    if (
+      field === "typologie" ||
+      field === "serviceRef"
+    ) {
+
+      const raw =
+        getCellValue(
+          row,
+          field
+        );
+
+
+      if (
+        String(
+          refId(raw) ?? ""
+        ) !==
+        String(filterValue)
+      ) {
+
+        return false;
+
+      }
+
+    }
+
+
+    else if (
+      field ===
+      "natureOperationnelle"
+    ) {
+
+      const raw =
+        getCellValue(
+          row,
+          field
+        ) === true;
+
+
+      if (
+        String(raw) !==
+        filterValue
+      ) {
+
+        return false;
+
+      }
+
+    }
+
+
+    else {
+
+      const raw =
+        getCellValue(
+          row,
+          field
+        );
+
+
+      if (
+        !String(
+          raw ?? ""
+        )
+          .toLowerCase()
+          .includes(
+            String(
+              filterValue
+            ).toLowerCase()
+          )
+      ) {
+
+        return false;
+
+      }
+
+    }
+
+  }
+
+
+  return true;
+
+}
+
+
+/* ============================================================
+   PIECES DU BATIMENT
+   ============================================================ */
+
+function getRoomsForBuilding() {
+
+  if (!selectedBuilding) {
+    return [];
+  }
+
+
+  const p =
+    CONFIG.pieces;
+
+
+  return allPieces.filter(
+    row =>
+      Number(
+        refId(
+          row[p.batimentRef]
+        )
+      ) ===
+      Number(
+        selectedBuilding.id
+      )
+  );
+
+}
+
+
+/* ============================================================
+   FILTRAGE + TRI
+   ============================================================ */
+
+function getFilteredSortedRows() {
+
+  const all =
+    getRoomsForBuilding();
+
+
+  const filtered =
+    all.filter(
+      matchesFilters
+    );
+
+
+  filtered.sort(
+    (a, b) => {
+
+      const av =
+        getSortValue(
+          a,
+          sortField
+        );
+
+      const bv =
+        getSortValue(
+          b,
+          sortField
+        );
+
+
+      let comparison;
+
+
+      if (
+        typeof av === "number" ||
+        typeof bv === "number"
+      ) {
+
+        comparison =
+          (Number(av) || 0) -
+          (Number(bv) || 0);
+
+      }
+
+      else {
+
+        comparison =
+          String(
+            av ?? ""
+          ).localeCompare(
+            String(
+              bv ?? ""
+            ),
+            "fr",
+            {
+              numeric: true
+            }
+          );
+
+      }
+
+
+      return sortDir === "asc"
+        ? comparison
+        : -comparison;
+
+    }
+  );
+
+
+  return {
+    all,
+    filtered
+  };
+
+}
+
+
+/* ============================================================
+   RESET FILTRES / TRI
+   ============================================================ */
+
+function resetFiltersAndSort(
+  rerender
+) {
+
+  filters = {};
+
+  sortField = "numero";
+
+  sortDir = "asc";
+
+
+  document
+    .querySelectorAll(
+      "#filter-row .filter-input"
+    )
+    .forEach(
+      element => {
+        element.value = "";
+      }
+    );
+
+
+  updateSortIndicators();
+
+
+  if (
+    rerender &&
+    selectedBuilding
+  ) {
+
+    renderRoomsTable();
+
+  }
+
+}
+
+
+/* ============================================================
+   INDICATEURS TRI
+   ============================================================ */
+
+function updateSortIndicators() {
+
+  document
+    .querySelectorAll(
+      "#header-row th.sortable"
+    )
+    .forEach(
+      th => {
+
+        const arrow =
+          th.querySelector(
+            ".sort-arrow"
+          );
+
+
+        if (
+          th.dataset.field ===
+          sortField
+        ) {
+
+          th.classList.add(
+            "sort-active"
+          );
+
+
+          arrow.textContent =
+            sortDir === "asc"
+              ? "▲"
+              : "▼";
+
+        }
+
+        else {
+
+          th.classList.remove(
+            "sort-active"
+          );
+
+          arrow.textContent = "";
+
+        }
+
+      }
+    );
+
+}
+
+
+/* ============================================================
+   RENDU DU TABLEAU
+   ============================================================ */
+
+function renderRoomsTable() {
+
+  const p =
+    CONFIG.pieces;
+
+
+  const {
+    all,
+    filtered: rows
+  } =
+    getFilteredSortedRows();
+
+
+  const tbody =
+    document.getElementById(
+      "rows-body"
+    );
+
+
+  const empty =
+    document.getElementById(
+      "empty-table"
+    );
+
+
+  /*
+   * Compteur
+   */
+
+  const totalSurface =
+    rows.reduce(
+      (
+        total,
+        row
+      ) => {
+
+        return total +
+          (
+            Number(
+              getCellValue(
+                row,
+                "surface"
+              )
+            ) || 0
+          );
+
+      },
+      0
+    );
+
+
+  document
+    .getElementById(
+      "head-count"
+    )
+    .textContent =
+    rows.length
+      ? `${rows.length} pièce(s) · ${fmtSurface(totalSurface)} m²`
+      : "";
+
+
+  /*
+   * Aucun résultat
+   */
+
+  if (!rows.length) {
+
+    tbody.innerHTML = "";
+
+    empty.style.display =
+      "block";
+
+
+    empty.textContent =
+      all.length
+
+        ? "Aucune pièce ne correspond aux filtres actuels."
+
+        : "Aucune pièce saisie pour ce bâtiment. Cliquez sur « + Ajouter une ligne » pour commencer.";
+
+
+    return;
+  }
+
+
+  empty.style.display =
+    "none";
+
+
+  /*
+   * IMPORTANT :
+   *
+   * Les SELECT de typologie et service
+   * ne contiennent PAS toutes les options ici.
+   *
+   * Cela évite le gros ralentissement initial.
+   */
+
+  tbody.innerHTML =
+    rows.map(
+      row => {
+
+        const dirty =
+          pendingEdits[row.id]
+            ? "dirty"
+            : "";
+
+
+        const saving =
+          savingIds.has(row.id)
+            ? "saving"
+            : "";
+
+
+        const overrides =
+          pendingEdits[row.id]
+          || {};
+
+
+        const value =
+          (
+            column,
+            fallback
+          ) => {
+
+            return column in overrides
+              ? overrides[column]
+              : fallback;
+
+          };
+
+
+        const currentTypology =
+          refId(
+            value(
+              p.typologie,
+              refId(
+                row[p.typologie]
+              )
+            )
+          );
+
+
+        const currentService =
+          refId(
+            value(
+              p.serviceRef,
+              refId(
+                row[p.serviceRef]
+              )
+            )
+          );
+
+
+        const currentTypologyObject =
+          typologies.find(
+            t =>
+              Number(t.id) ===
+              Number(currentTypology)
+          );
+
+
+        const currentServiceObject =
+          services.find(
+            s =>
+              Number(s.id) ===
+              Number(currentService)
+          );
+
+
+        const typologyLabel =
+          currentTypologyObject
+            ? currentTypologyObject[
+                CONFIG.typologie.label
+              ] || ""
+            : "";
+
+
+        const serviceLabel =
+          currentServiceObject
+            ? currentServiceObject[
+                CONFIG.services.nom
+              ] || ""
+            : "";
+
+
+        const operationnelle =
+          value(
+            p.natureOperationnelle,
+            row[
+              p.natureOperationnelle
+            ] === true
+          );
+
+
+        return `
+
+          <tr
+            data-id="${escapeHtml(row.id)}"
+            class="${dirty} ${saving}"
+          >
+
+            <td class="col-niveau">
+
+              <input
+                class="cell-input"
+                data-field="${escapeHtml(p.niveau)}"
+                type="text"
+                value="${escapeHtml(
+                  value(
+                    p.niveau,
+                    row[p.niveau] ?? ""
+                  )
+                )}"
+              >
+
+            </td>
+
+
+            <td class="col-numero">
+
+              <input
+                class="cell-input"
+                data-field="${escapeHtml(p.numero)}"
+                type="text"
+                value="${escapeHtml(
+                  value(
+                    p.numero,
+                    row[p.numero] ?? ""
+                  )
+                )}"
+              >
+
+            </td>
+
+
+            <td class="col-nom">
+
+              <input
+                class="cell-input"
+                data-field="${escapeHtml(p.nom)}"
+                type="text"
+                value="${escapeHtml(
+                  value(
+                    p.nom,
+                    row[p.nom] ?? ""
+                  )
+                )}"
+              >
+
+            </td>
+
+
+            <!-- TYPOLOGIE -->
+
+            <td>
+
+              <select
+                class="cell-select lazy-reference"
+                data-field="${escapeHtml(p.typologie)}"
+                data-ref="true"
+                data-ref-type="typologie"
+                data-current-value="${escapeHtml(
+                  currentTypology ?? ""
+                )}"
+              >
+
+                <option value="${escapeHtml(
+                  currentTypology ?? ""
+                )}">
+                  ${escapeHtml(
+                    typologyLabel ||
+                    "—"
+                  )}
+                </option>
+
+              </select>
+
+            </td>
+
+
+            <!-- SERVICE -->
+
+            <td>
+
+              <select
+                class="cell-select lazy-reference"
+                data-field="${escapeHtml(p.serviceRef)}"
+                data-ref="true"
+                data-ref-type="service"
+                data-current-value="${escapeHtml(
+                  currentService ?? ""
+                )}"
+              >
+
+                <option value="${escapeHtml(
+                  currentService ?? ""
+                )}">
+                  ${escapeHtml(
+                    serviceLabel ||
+                    "—"
+                  )}
+                </option>
+
+              </select>
+
+            </td>
+
+
+            <td>
+
+              <input
+                class="cell-input"
+                data-field="${escapeHtml(p.sousService)}"
+                type="text"
+                value="${escapeHtml(
+                  value(
+                    p.sousService,
+                    row[p.sousService] ?? ""
+                  )
+                )}"
+              >
+
+            </td>
+
+
+            <td class="col-surface">
+
+              <input
+                class="cell-input"
+                data-field="${escapeHtml(p.surface)}"
+                type="number"
+                step="0.1"
+                min="0"
+                value="${escapeHtml(
+                  value(
+                    p.surface,
+                    row[p.surface] ?? ""
+                  )
+                )}"
+              >
+
+            </td>
+
+
+            <td>
+
+              <input
+                class="cell-input"
+                data-field="${escapeHtml(p.nbOccupant)}"
+                type="number"
+                step="1"
+                min="0"
+                value="${escapeHtml(
+                  value(
+                    p.nbOccupant,
+                    row[p.nbOccupant] ?? ""
+                  )
+                )}"
+              >
+
+            </td>
+
+
+            <td>
+
+              <input
+                class="cell-input"
+                data-field="${escapeHtml(p.nbPdt)}"
+                type="number"
+                step="1"
+                min="0"
+                value="${escapeHtml(
+                  value(
+                    p.nbPdt,
+                    row[p.nbPdt] ?? ""
+                  )
+                )}"
+              >
+
+            </td>
+
+
+            <td>
+
+              <div class="cell-check-wrap">
+
+                <input
+                  type="checkbox"
+                  data-field="${escapeHtml(
+                    p.natureOperationnelle
+                  )}"
+                  data-bool="true"
+                  ${operationnelle ? "checked" : ""}
+                >
+
+              </div>
+
+            </td>
+
+
+            <td class="col-actions">
+
+              <div class="row-actions">
+
+                <button
+                  class="row-del"
+                  title="Supprimer la pièce"
+                >
+                  ✕
+                </button>
+
+              </div>
+
+            </td>
+
+          </tr>
+
+        `;
+
+      }
+    ).join("");
+
+
+  /*
+   * Ecouteurs
+   */
+
+  tbody
+    .querySelectorAll("tr")
+    .forEach(
+      tr => {
+
+        const rowId =
+          Number(
+            tr.dataset.id
+          );
+
+
+        tr
+          .querySelectorAll(
+            "input.cell-input, select.cell-select, input[data-bool]"
+          )
+          .forEach(
+            element => {
+
+              /*
+               * Pour les SELECT lazy :
+               * on prépare les options au focus/clic.
+               */
+
+              if (
+                element.classList.contains(
+                  "lazy-reference"
+                )
+              ) {
+
+                element.addEventListener(
+                  "focus",
+                  () => {
+
+                    prepareReferenceSelect(
+                      element
+                    );
+
+                  }
+                );
+
+
+                element.addEventListener(
+                  "pointerdown",
+                  () => {
+
+                    prepareReferenceSelect(
+                      element
+                    );
+
+                  }
+                );
+
+              }
+
+
+              const eventType =
+
+                element.tagName === "SELECT"
+
+                  ? "change"
+
+                  : element.type === "number"
+
+                    ? "change"
+
+                    : element.dataset.bool === "true"
+
+                      ? "change"
+
+                      : "input";
+
+
+              element.addEventListener(
+                eventType,
+                () => {
+
+                  markDirty(
+                    rowId,
+                    element
+                  );
+
+                }
+              );
+
+            }
+          );
+
+
+        tr
+          .querySelector(
+            ".row-del"
+          )
+          .addEventListener(
+            "click",
+            () => {
+
+              deleteRow(
+                rowId
+              );
+
+            }
+          );
+
+      }
+    );
+
+}
+
+
+/* ============================================================
+   SELECT REFERENCES — CHARGEMENT A LA DEMANDE
+   ============================================================ */
+
+/*
+ * C'est l'optimisation principale.
+ *
+ * AVANT :
+ *
+ * 1000 lignes × toutes les typologies × tous les services
+ *
+ * MAINTENANT :
+ *
+ * le select contient uniquement sa valeur actuelle.
+ *
+ * Les options complètes sont injectées lorsque l'utilisateur
+ * commence à utiliser le select.
+ */
+
+function prepareReferenceSelect(
+  select
+) {
+
+  if (
+    select.dataset.loaded === "true"
+  ) {
+
+    return;
+  }
+
+
+  const type =
+    select.dataset.refType;
+
+
+  const currentValue =
+    select.dataset.currentValue
+    || "";
+
+
+  let list;
+  let labelKey;
+  let idKey;
+
+
+  if (
+    type === "typologie"
+  ) {
+
+    list =
+      typologies;
+
+    labelKey =
+      CONFIG.typologie.label;
+
+    idKey =
+      CONFIG.typologie.id;
+
+  }
+
+  else {
+
+    list =
+      services;
+
+    labelKey =
+      CONFIG.services.nom;
+
+    idKey =
+      CONFIG.services.id;
+
+  }
+
+
+  /*
+   * On évite de faire un énorme travail synchrone
+   * si la liste est très importante.
+   */
+
+  select.classList.add(
+    "loading"
+  );
+
+
+  const fragment =
+    document.createDocumentFragment();
+
+
+  /*
+   * Option vide
+   */
+
+  const emptyOption =
+    document.createElement(
+      "option"
+    );
+
+  emptyOption.value = "";
+
+  emptyOption.textContent =
+    "—";
+
+  fragment.appendChild(
+    emptyOption
+  );
+
+
+  /*
+   * Options
+   */
+
+  for (
+    const item of list
+  ) {
+
+    const option =
+      document.createElement(
+        "option"
+      );
+
+
+    option.value =
+      item[idKey];
+
+
+    option.textContent =
+      item[labelKey] || "";
+
+
+    if (
+      String(
+        item[idKey]
+      ) ===
+      String(
+        currentValue
+      )
+    ) {
+
+      option.selected =
+        true;
+
+    }
+
+
+    fragment.appendChild(
+      option
+    );
+
+  }
+
+
+  select.replaceChildren(
+    fragment
+  );
+
+
+  select.dataset.loaded =
+    "true";
+
+
+  select.classList.remove(
+    "loading"
+  );
+
+}
+
+
+/* ============================================================
+   LECTURE VALEUR CELLULE
+   ============================================================ */
+
+function readFieldValue(
+  element
+) {
+
+  if (
+    element.dataset.bool ===
+    "true"
+  ) {
+
+    return element.checked;
+
+  }
+
+
+  if (
+    element.dataset.ref ===
+    "true"
+  ) {
+
+    return element.value
+      ? Number(
+          element.value
+        )
+      : null;
+
+  }
+
+
+  if (
+    element.type ===
+    "number"
+  ) {
+
+    return element.value === ""
+      ? null
+      : Number(
+          element.value
+        );
+
+  }
+
+
+  return element.value.trim();
+
+}
+
+
+/* ============================================================
+   MODIFICATION LOCALE
+   ============================================================ */
+
+function markDirty(
+  rowId,
+  element
+) {
+
+  const field =
+    element.dataset.field;
+
+
+  const value =
+    readFieldValue(
+      element
+    );
+
+
+  if (
+    !pendingEdits[rowId]
+  ) {
+
+    pendingEdits[rowId] = {};
+
+  }
+
+
+  pendingEdits[rowId][field] =
+    value;
+
+
+  /*
+   * Mise à jour de la valeur courante
+   * du select lazy.
+   */
+
+  if (
+    element.classList.contains(
+      "lazy-reference"
+    )
+  ) {
+
+    element.dataset.currentValue =
+      element.value;
+
+  }
+
+
+  const tr =
+    element.closest(
+      "tr"
+    );
+
+
+  if (tr) {
+
+    tr.classList.add(
+      "dirty"
+    );
+
+  }
+
+
+  updateSaveAllButton();
+
+  updatePendingWarning();
+
+}
+
+
+/* ============================================================
+   BOUTON SAUVEGARDE
+   ============================================================ */
+
+function updateSaveAllButton() {
+
+  const count =
+    Object.keys(
+      pendingEdits
+    ).length;
+
+
+  const button =
+    document.getElementById(
+      "save-all-btn"
+    );
+
+
+  const badge =
+    document.getElementById(
+      "save-all-badge"
+    );
+
+
+  button.disabled =
+    count === 0;
+
+
+  button.classList.toggle(
+    "has-pending",
+    count > 0
+  );
+
+
+  badge.textContent =
+    count > 0
+      ? count
+      : "";
+
+}
+
+
+function updatePendingWarning() {
+
+  document
+    .getElementById(
+      "pending-warning"
+    )
+    .classList.toggle(
+      "show",
+      Object.keys(
+        pendingEdits
+      ).length > 0
+    );
+
+}
+
+
+/* ============================================================
+   SAUVEGARDE GLOBALE
+   ============================================================ */
+
+/*
+ * IMPORTANT :
+ *
+ * Il n'y a plus de sauvegarde ligne par ligne.
+ *
+ * Toutes les modifications partent en une seule action
+ * applyUserActions().
+ */
+
+async function saveAllPending() {
+
+  const rowIds =
+    Object.keys(
+      pendingEdits
+    )
+      .map(Number);
+
+
+  if (!rowIds.length) {
+    return;
+  }
+
+
+  const button =
+    document.getElementById(
+      "save-all-btn"
+    );
+
+
+  button.disabled =
+    true;
+
+
+  rowIds.forEach(
+    id => {
+
+      savingIds.add(id);
+
+
+      const tr =
+        document.querySelector(
+          `tr[data-id="${id}"]`
+        );
+
+
+      if (tr) {
+
+        tr.classList.add(
+          "saving"
+        );
+
+      }
+
+    }
+  );
+
+
+  /*
+   * Copie des modifications avant l'appel.
+   *
+   * Cela évite qu'une modification supplémentaire
+   * pendant la sauvegarde ne soit perdue.
+   */
+
+  const editsToSave = {};
+
+
+  rowIds.forEach(
+    id => {
+
+      editsToSave[id] =
+        {
+          ...pendingEdits[id]
+        };
+
+    }
+  );
+
+
+  try {
+
+    const actions =
+      rowIds.map(
+        id => [
+
+          "UpdateRecord",
+
+          CONFIG.tables.pieces,
+
+          id,
+
+          editsToSave[id]
+
+        ]
+      );
+
+
+    await grist.docApi.applyUserActions(
+      actions
+    );
+
+
+    /*
+     * Mise à jour immédiate de notre mémoire locale.
+     */
+
+    rowIds.forEach(
+      id => {
+
+        const local =
+          allPieces.find(
+            row =>
+              Number(row.id) ===
+              Number(id)
+          );
+
+
+        if (local) {
+
+          Object.assign(
+            local,
+            editsToSave[id]
+          );
+
+        }
+
+
+        /*
+         * On ne supprime le pending que si
+         * la valeur n'a pas été modifiée
+         * pendant la sauvegarde.
+         */
+
+        if (
+          JSON.stringify(
+            pendingEdits[id]
+          ) ===
+          JSON.stringify(
+            editsToSave[id]
+          )
+        ) {
+
+          delete pendingEdits[id];
+
+        }
+
+      }
+    );
+
+
+    showToast(
+      `${rowIds.length} ligne(s) enregistrée(s).`
+    );
+
+
+  } catch (error) {
+
+    console.error(
+      "Erreur sauvegarde :",
+      error
+    );
+
+
+    showToast(
+      "Erreur lors de l'enregistrement groupé. Vérifiez les valeurs saisies."
+    );
+
+  }
+
+
+  finally {
+
+    rowIds.forEach(
+      id => {
+
+        savingIds.delete(id);
+
+
+        const tr =
+          document.querySelector(
+            `tr[data-id="${id}"]`
+          );
+
+
+        if (tr) {
+
+          tr.classList.remove(
+            "saving"
+          );
+
+        }
+
+      }
+    );
+
+
+    updateSaveAllButton();
+
+    updatePendingWarning();
+
+    renderRoomsTable();
+
+  }
+
+}
+
+
+document
+  .getElementById(
+    "save-all-btn"
+  )
+  .addEventListener(
+    "click",
+    saveAllPending
+  );
+
+
+/* ============================================================
+   COMPTEUR
+   ============================================================ */
+
+function updateHeadCount() {
+
+  if (!selectedBuilding) {
+
+    document
+      .getElementById(
+        "head-count"
+      )
+      .textContent = "";
+
+    return;
+  }
+
+
+  const p =
+    CONFIG.pieces;
+
+
+  const rows =
+    allPieces.filter(
+      row =>
+        Number(
+          refId(
+            row[p.batimentRef]
+          )
+        ) ===
+        Number(
+          selectedBuilding.id
+        )
+    );
+
+
+  const surface =
+    rows.reduce(
+      (
+        total,
+        row
+      ) => {
+
+        return total +
+          (
+            Number(
+              row[p.surface]
+            ) || 0
+          );
+
+      },
+      0
+    );
+
+
+  document
+    .getElementById(
+      "head-count"
+    )
+    .textContent =
+    rows.length
+      ? `${rows.length} pièce(s) · ${fmtSurface(surface)} m²`
+      : "";
+
+}
+
+
+/* ============================================================
+   SUPPRESSION
+   ============================================================ */
+
+async function deleteRow(
+  rowId
+) {
+
+  if (
+    !confirm(
+      "Supprimer définitivement cette pièce ?"
+    )
+  ) {
+
+    return;
+  }
+
+
+  try {
+
+    await grist.docApi.applyUserActions([
+
+      [
+        "RemoveRecord",
+        CONFIG.tables.pieces,
+        rowId
+      ]
+
+    ]);
+
+
+    allPieces =
+      allPieces.filter(
+        row =>
+          Number(row.id) !==
+          Number(rowId)
+      );
+
+
+    delete pendingEdits[rowId];
+
+
+    updateSaveAllButton();
+
+    updatePendingWarning();
+
+    renderRoomsTable();
+
+
+    showToast(
+      "Pièce supprimée."
+    );
+
+
+  } catch (error) {
+
+    console.error(
+      "Erreur suppression :",
+      error
+    );
+
+
+    showToast(
+      "Erreur lors de la suppression."
+    );
+
+  }
+
+}
+
+
+/* ============================================================
+   AJOUT D'UNE PIECE
+   ============================================================ */
+
+document
+  .getElementById(
+    "btn-add-row"
+  )
+  .addEventListener(
+    "click",
+    async () => {
+
+      if (!selectedBuilding) {
+
+        showToast(
+          "Sélectionnez d'abord un bâtiment."
+        );
+
+        return;
+      }
+
+
+      const p =
+        CONFIG.pieces;
+
+
+      const button =
+        document.getElementById(
+          "btn-add-row"
+        );
+
+
+      button.disabled =
+        true;
+
+
+      try {
+
+        const result =
+          await grist.docApi.applyUserActions([
+
+            [
+              "AddRecord",
+              CONFIG.tables.pieces,
+              null,
+              {
+
+                [p.batimentRef]:
+                  selectedBuilding.id,
+
+                [p.nom]:
+                  "Nouvelle pièce"
+
+              }
+            ]
+
+          ]);
+
+
+        const newId =
+          result.retValues[0];
+
+
+        /*
+         * On ajoute directement la nouvelle pièce
+         * dans notre mémoire locale.
+         *
+         * Pas besoin de recharger toute la table.
+         */
+
+        allPieces.push({
+
+          id: newId,
+
+          [p.batimentRef]:
+            selectedBuilding.id,
+
+          [p.nom]:
+            "Nouvelle pièce"
+
+        });
+
+
+        renderRoomsTable();
+
+
+        const tr =
+          document.querySelector(
+            `tr[data-id="${newId}"]`
+          );
+
+
+        if (tr) {
+
+          const firstInput =
+            tr.querySelector(
+              "input.cell-input"
+            );
+
+
+          if (firstInput) {
+
+            firstInput.focus();
+
+            firstInput.select();
+
+          }
+
+
+          tr.scrollIntoView({
+            block: "nearest"
+          });
+
+        }
+
+
+      } catch (error) {
+
+        console.error(
+          "Erreur ajout pièce :",
+          error
+        );
+
+        showToast(
+          "Erreur lors de l'ajout de la pièce."
+        );
+      }
+
+      finally {
+
+        button.disabled =
+          false;
+      }
+    }
+  );
+
+
+/* ============================================================
+   TRI
+   ============================================================ */
+
+document
+  .querySelectorAll(
+    "#header-row th.sortable"
+  )
+  .forEach(
+    th => {
+
+      th.addEventListener(
+        "click",
+        () => {
+
+          const field =
+            th.dataset.field;
+
+
+          if (
+            sortField === field
+          ) {
+
+            sortDir =
+              sortDir === "asc"
+                ? "desc"
+                : "asc";
+
+          }
+
+          else {
+
+            sortField =
+              field;
+
+            sortDir =
+              "asc";
+
+          }
+
+
+          updateSortIndicators();
+
+
+          if (selectedBuilding) {
+
+            renderRoomsTable();
+
+          }
+
+        }
+      );
+
+    }
+  );
+
+
+/* ============================================================
+   FILTRES
+   ============================================================ */
+
+document
+  .querySelectorAll(
+    "#filter-row .filter-input"
+  )
+  .forEach(
+    element => {
+
+      const eventType =
+        element.tagName === "SELECT"
+          ? "change"
+          : "input";
+
+
+      element.addEventListener(
+        eventType,
+        () => {
+
+          filters[
+            element.dataset.field
+          ] =
+            element.value;
+
+
+          if (selectedBuilding) {
+
+            renderRoomsTable();
+
+          }
+
+        }
+      );
+
+    }
+  );
+
+
+/* ============================================================
+   RESET FILTRES
+   ============================================================ */
+
+document
+  .getElementById(
+    "btn-clear-filters"
+  )
+  .addEventListener(
+    "click",
+    () => {
+
+      resetFiltersAndSort(
+        true
+      );
+
+    }
+  );
+
+
+updateSortIndicators();
+
+
+/* ============================================================
+   PROTECTION CONTRE LE RAFRAICHISSEMENT
+   ============================================================ */
+
+/* Si l'utilisateur est en train de saisir :
+ * Grist peut signaler une modification.
+ * On NE rafraîchit PAS le tableau.
+ * Cela évite d'écraser visuellement une saisie.
+ */
+
+grist.onRecords(
+  async () => {
+
+    if (
+      Object.keys(
+        pendingEdits
+      ).length > 0
+    ) {
+
+      updatePendingWarning();
+
+      return;
+    }
+
+
+    /*
+     * Pendant le chargement initial,
+     * le callback onRecords ne doit pas lancer
+     * une deuxième grosse requête.
+     */
+
+    if (isInitialLoading) {
+
+      return;
+
+    }
+
+
+    await refreshPiecesOnly();
+
+  }
+);
+
+
+/* ============================================================
+   DEMARRAGE GRIST
+   ============================================================ */
+
+grist.ready({
+  requiredAccess: "full"
 });
-loadAll().catch(e=>{
-  console.error(e);toast("Impossible de charger les données Grist.");
-});
+
+
+/*
+ * UNE SEULE initialisation.
+ */
+
+initialLoad();
+
 </script>
+
 </body>
 </html>
