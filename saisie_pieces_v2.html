@@ -331,19 +331,16 @@
         <table>
           <thead>
             <tr>
-              <th class="col-numero">N°</th>
-              <th class="col-nom">Nom</th>
               <th class="col-niveau">Étage</th>
+              <th class="col-numero">Numéro du local</th>
+              <th class="col-nom">Nom du local</th>
               <th>Typologie</th>
-              <th style="text-align:right;">Surface (m²)</th>
               <th>Service occupant</th>
               <th>Sous-service</th>
-              <th style="text-align:right;">Nb occ.</th>
-              <th style="text-align:right;">Nb postes</th>
-              <th style="text-align:right;">Nb résidents</th>
-              <th style="text-align:right;">% résidents</th>
-              <th>N° catégorie</th>
-              <th style="text-align:center;">Opé.</th>
+              <th style="text-align:right;">Surface du local (m²)</th>
+              <th style="text-align:right;">Occupants (inclus prestataires)</th>
+              <th style="text-align:right;">Nb postes de travail existants</th>
+              <th style="text-align:center;">Nature opérationnelle</th>
               <th class="col-actions"></th>
             </tr>
           </thead>
@@ -592,18 +589,15 @@ function renderRoomsTable() {
     const saving = savingIds.has(r.id) ? "saving" : "";
     return `
       <tr data-id="${r.id}" class="${saving}">
+        <td class="col-niveau"><input class="cell-input" data-field="${p.niveau}" type="text" value="${r[p.niveau] ?? ""}"></td>
         <td class="col-numero"><input class="cell-input" data-field="${p.numero}" type="text" value="${r[p.numero] ?? ""}"></td>
         <td class="col-nom"><input class="cell-input" data-field="${p.nom}" type="text" value="${(r[p.nom] ?? "").toString().replace(/"/g,'&quot;')}"></td>
-        <td class="col-niveau"><input class="cell-input" data-field="${p.niveau}" type="text" value="${r[p.niveau] ?? ""}"></td>
         <td><select class="cell-select" data-field="${p.typologie}" data-ref="true">${optionsHtml(typologies, CONFIG.typologie.label, CONFIG.typologie.id, refId(r[p.typologie]))}</select></td>
-        <td class="col-surface"><input class="cell-input" data-field="${p.surface}" type="number" step="0.1" min="0" value="${r[p.surface] ?? ""}"></td>
         <td><select class="cell-select" data-field="${p.serviceRef}" data-ref="true">${optionsHtml(services, CONFIG.services.nom, CONFIG.services.id, refId(r[p.serviceRef]))}</select></td>
         <td><input class="cell-input" data-field="${p.sousService}" type="text" value="${r[p.sousService] ?? ""}"></td>
+        <td class="col-surface"><input class="cell-input" data-field="${p.surface}" type="number" step="0.1" min="0" value="${r[p.surface] ?? ""}"></td>
         <td><input class="cell-input" data-field="${p.nbOccupant}" type="number" step="1" min="0" value="${r[p.nbOccupant] ?? ""}"></td>
         <td><input class="cell-input" data-field="${p.nbPdt}" type="number" step="1" min="0" value="${r[p.nbPdt] ?? ""}"></td>
-        <td><input class="cell-input" data-field="${p.nbResident}" type="number" step="1" min="0" value="${r[p.nbResident] ?? ""}"></td>
-        <td><input class="cell-input" data-field="${p.pourcentageResident}" type="number" step="0.1" min="0" max="100" value="${r[p.pourcentageResident] ?? ""}"></td>
-        <td><input class="cell-input" data-field="${p.numCat}" type="text" value="${r[p.numCat] ?? ""}"></td>
         <td><div class="cell-check-wrap"><input type="checkbox" data-field="${p.natureOperationnelle}" data-bool="true" ${isOp ? "checked" : ""}></div></td>
         <td class="col-actions"><button class="row-del" title="Supprimer la pièce">✕</button></td>
       </tr>`;
