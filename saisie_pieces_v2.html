@@ -215,7 +215,35 @@
     white-space:nowrap;
     z-index: 5;
   }
-  thead th.col-actions{ width: 40px; }
+  thead th.col-actions{ width: 76px; }
+  thead th.sortable{ cursor:pointer; user-select:none; }
+  thead th.sortable:hover{ color: var(--ink); }
+  thead th.sort-active{ color: var(--accent); }
+  .sort-arrow{ display:inline-block; width:10px; margin-left:2px; font-size:10px; }
+  #filter-row th{
+    position: sticky;
+    top: 30px;
+    background: #fff;
+    padding: 5px 6px;
+    z-index: 4;
+    border-bottom: 1.5px solid var(--line);
+  }
+  .filter-input{
+    width:100%;
+    min-width: 64px;
+    padding: 6px 7px;
+    border-radius: 6px;
+    border: 1px solid var(--line);
+    font-family: var(--font-display);
+    font-size: 12px;
+    font-weight:400;
+    text-transform:none;
+    letter-spacing:normal;
+    color: var(--ink);
+    outline:none;
+    background:#fff;
+  }
+  .filter-input:focus{ border-color: var(--accent); }
   tbody td{
     padding: 0;
     border-bottom: 1px solid var(--line);
@@ -255,17 +283,43 @@
   }
   .cell-check-wrap input{ width:17px; height:17px; accent-color: var(--teal); cursor:pointer; }
 
-  .row-del{
-    width:100%;
+  .row-actions{ display:flex; gap:2px; padding: 4px 4px; justify-content:center; }
+  .row-del, .row-save{
     border:none;
     background:none;
     color: var(--ink-soft);
-    font-size: 15px;
+    font-size: 14px;
     cursor:pointer;
-    padding: 9px 6px;
+    padding: 7px 7px;
     border-radius: 5px;
   }
   .row-del:hover{ background: var(--danger-soft); color: var(--danger); }
+  .row-save{ color: var(--line); visibility:hidden; }
+  tr.dirty .row-save{ color: var(--teal); visibility:visible; }
+  .row-save:hover{ background: var(--teal-soft); }
+
+  #save-all-btn{ position:relative; }
+  #save-all-badge{
+    display:none;
+    background:#fff;
+    color: var(--accent);
+    font-family: var(--font-mono);
+    font-size:11px;
+    font-weight:700;
+    border-radius: 999px;
+    padding: 0 6px;
+    margin-left: 6px;
+  }
+  #save-all-btn.has-pending #save-all-badge{ display:inline-block; }
+  #save-all-btn:disabled{ opacity:0.5; cursor:not-allowed; }
+
+  #pending-warning{
+    display:none;
+    font-size: 12.5px;
+    color: var(--accent);
+    margin-bottom: 10px;
+  }
+  #pending-warning.show{ display:block; }
 
   #empty-table{ padding: 30px 0; text-align:center; color: var(--ink-soft); font-size:13px; }
 
@@ -324,23 +378,47 @@
     <!-- TABLEAU EDITABLE DES PIECES -->
     <div id="table-block">
       <div class="table-toolbar">
-        <label class="label" style="margin-bottom:0;">Pièces du bâtiment — cliquez dans une cellule pour modifier</label>
-        <button class="tbtn primary" id="btn-add-row">+ Ajouter une ligne</button>
+        <label class="label" style="margin-bottom:0;">Pièces du bâtiment — modifiez les cellules puis enregistrez</label>
+        <div style="display:flex; gap:8px;">
+          <button class="tbtn primary" id="save-all-btn" disabled>💾 Enregistrer les modifications<span id="save-all-badge"></span></button>
+          <button class="tbtn" id="btn-add-row">+ Ajouter une ligne</button>
+          <button class="tbtn" id="btn-clear-filters">Réinitialiser filtres/tri</button>
+        </div>
       </div>
+      <div id="pending-warning">Des modifications non enregistrées sont en cours — le tableau ne se rafraîchira pas automatiquement tant que vous n'avez pas cliqué sur « Enregistrer ».</div>
       <div id="table-scroll">
         <table>
           <thead>
-            <tr>
-              <th class="col-niveau">Étage</th>
-              <th class="col-numero">Numéro du local</th>
-              <th class="col-nom">Nom du local</th>
-              <th>Typologie</th>
-              <th>Service occupant</th>
-              <th>Sous-service</th>
-              <th style="text-align:right;">Surface du local (m²)</th>
-              <th style="text-align:right;">Occupants (inclus prestataires)</th>
-              <th style="text-align:right;">Nb postes de travail existants</th>
-              <th style="text-align:center;">Nature opérationnelle</th>
+            <tr id="header-row">
+              <th class="col-niveau sortable" data-field="niveau" data-type="text">Étage<span class="sort-arrow"></span></th>
+              <th class="col-numero sortable" data-field="numero" data-type="text">Numéro du local<span class="sort-arrow"></span></th>
+              <th class="col-nom sortable" data-field="nom" data-type="text">Nom du local<span class="sort-arrow"></span></th>
+              <th class="sortable" data-field="typologie" data-type="ref-typologie">Typologie<span class="sort-arrow"></span></th>
+              <th class="sortable" data-field="serviceRef" data-type="ref-service">Service occupant<span class="sort-arrow"></span></th>
+              <th class="sortable" data-field="sousService" data-type="text">Sous-service<span class="sort-arrow"></span></th>
+              <th class="sortable" data-field="surface" data-type="number" style="text-align:right;">Surface du local (m²)<span class="sort-arrow"></span></th>
+              <th class="sortable" data-field="nbOccupant" data-type="number" style="text-align:right;">Occupants (inclus prestataires)<span class="sort-arrow"></span></th>
+              <th class="sortable" data-field="nbPdt" data-type="number" style="text-align:right;">Nb postes de travail existants<span class="sort-arrow"></span></th>
+              <th class="sortable" data-field="natureOperationnelle" data-type="bool" style="text-align:center;">Nature opérationnelle<span class="sort-arrow"></span></th>
+              <th class="col-actions"></th>
+            </tr>
+            <tr id="filter-row">
+              <th><input class="filter-input" data-field="niveau" data-type="text" placeholder="Filtrer…"></th>
+              <th><input class="filter-input" data-field="numero" data-type="text" placeholder="Filtrer…"></th>
+              <th><input class="filter-input" data-field="nom" data-type="text" placeholder="Filtrer…"></th>
+              <th><select class="filter-input" data-field="typologie" data-type="ref-typologie"><option value="">Tous</option></select></th>
+              <th><select class="filter-input" data-field="serviceRef" data-type="ref-service"><option value="">Tous</option></select></th>
+              <th><input class="filter-input" data-field="sousService" data-type="text" placeholder="Filtrer…"></th>
+              <th><input class="filter-input" data-field="surface" data-type="number" placeholder="Filtrer…"></th>
+              <th><input class="filter-input" data-field="nbOccupant" data-type="number" placeholder="Filtrer…"></th>
+              <th><input class="filter-input" data-field="nbPdt" data-type="number" placeholder="Filtrer…"></th>
+              <th>
+                <select class="filter-input" data-field="natureOperationnelle" data-type="bool">
+                  <option value="">Tous</option>
+                  <option value="true">Oui</option>
+                  <option value="false">Non</option>
+                </select>
+              </th>
               <th class="col-actions"></th>
             </tr>
           </thead>
@@ -413,7 +491,11 @@ let allPieces = [];
 let services = [];
 let typologies = [];
 let selectedBuilding = null;   // objet bâtiment sélectionné
-let savingIds = new Set();     // ids de pièces en cours d'enregistrement (pour éviter les collisions d'affichage)
+let pendingEdits = {};         // { rowId: { field: value, ... } } — modifications locales pas encore enregistrées
+let savingIds = new Set();     // ids de pièces en cours d'enregistrement (pour l'indicateur visuel)
+let sortField = "numero";      // clé logique CONFIG.pieces (ex: "numero", "surface"…)
+let sortDir = "asc";           // "asc" | "desc"
+let filters = {};              // { champLogique: valeurFiltre }
 
 function toRows(table) {
   if (!table || !table.id) return [];
@@ -452,10 +534,28 @@ async function loadAll() {
   allPieces = toRows(pcs);
   services = toRows(srv);
   typologies = toRows(typ);
+  populateFilterSelects();
   if (selectedBuilding) {
     const fresh = buildings.find(b => b.id === selectedBuilding.id);
     if (fresh) selectedBuilding = fresh;
     renderRoomsTable();
+  }
+}
+
+function populateFilterSelects() {
+  const typoSel = document.querySelector('.filter-input[data-field="typologie"]');
+  const svcSel = document.querySelector('.filter-input[data-field="serviceRef"]');
+  if (typoSel) {
+    const current = typoSel.value;
+    typoSel.innerHTML = `<option value="">Tous</option>` +
+      typologies.map(t => `<option value="${t.id}">${t[CONFIG.typologie.label] || ""}</option>`).join("");
+    typoSel.value = current;
+  }
+  if (svcSel) {
+    const current = svcSel.value;
+    svcSel.innerHTML = `<option value="">Tous</option>` +
+      services.map(s => `<option value="${s.id}">${s[CONFIG.services.nom] || ""}</option>`).join("");
+    svcSel.value = current;
   }
 }
 
@@ -541,6 +641,7 @@ function selectBuilding(id) {
     [selectedBuilding[c.adresse], selectedBuilding[c.codePostal], selectedBuilding[c.ville]].filter(Boolean).join(", ");
 
   document.getElementById("table-block").classList.add("active");
+  resetFiltersAndSort(false);
   renderRoomsTable();
 }
 document.getElementById("bs-change").addEventListener("click", () => {
@@ -564,59 +665,168 @@ function optionsHtml(list, labelKey, idKey, currentId) {
   }).join("");
 }
 
+/* Valeur actuellement affichée pour une pièce/champ logique, en tenant compte des modifs locales non enregistrées */
+function getCellValue(r, field) {
+  const col = CONFIG.pieces[field];
+  const ov = pendingEdits[r.id];
+  if (ov && col in ov) return ov[col];
+  return r[col];
+}
+
+/* Valeur utilisée pour le tri (résout les références vers un libellé lisible) */
+function getSortValue(r, field) {
+  const raw = getCellValue(r, field);
+  if (field === "typologie") {
+    const t = typologies.find(t => t.id === refId(raw));
+    return (t ? t[CONFIG.typologie.label] : "") || "";
+  }
+  if (field === "serviceRef") {
+    const s = services.find(s => s.id === refId(raw));
+    return (s ? s[CONFIG.services.nom] : "") || "";
+  }
+  if (field === "natureOperationnelle") return raw === true ? 1 : 0;
+  return raw;
+}
+
+function matchesFilters(r) {
+  for (const field in filters) {
+    const fv = filters[field];
+    if (fv === "" || fv == null) continue;
+    if (field === "typologie" || field === "serviceRef") {
+      const raw = getCellValue(r, field);
+      if (String(refId(raw) ?? "") !== String(fv)) return false;
+    } else if (field === "natureOperationnelle") {
+      const raw = getCellValue(r, field) === true;
+      if (String(raw) !== fv) return false;
+    } else {
+      const raw = getCellValue(r, field);
+      if (!String(raw ?? "").toLowerCase().includes(String(fv).toLowerCase())) return false;
+    }
+  }
+  return true;
+}
+
+function getRoomsForBuilding() {
+  const p = CONFIG.pieces;
+  return allPieces.filter(r => refId(r[p.batimentRef]) === selectedBuilding.id);
+}
+
+function getFilteredSortedRows() {
+  const all = getRoomsForBuilding();
+  const filtered = all.filter(matchesFilters);
+  filtered.sort((a, b) => {
+    const av = getSortValue(a, sortField);
+    const bv = getSortValue(b, sortField);
+    let cmp;
+    if (typeof av === "number" || typeof bv === "number") {
+      cmp = (Number(av) || 0) - (Number(bv) || 0);
+    } else {
+      cmp = String(av ?? "").localeCompare(String(bv ?? ""), "fr", { numeric: true });
+    }
+    return sortDir === "asc" ? cmp : -cmp;
+  });
+  return { all, filtered };
+}
+
+function resetFiltersAndSort(rerender) {
+  filters = {};
+  sortField = "numero";
+  sortDir = "asc";
+  document.querySelectorAll("#filter-row .filter-input").forEach(el => { el.value = ""; });
+  updateSortIndicators();
+  if (rerender && selectedBuilding) renderRoomsTable();
+}
+
+function updateSortIndicators() {
+  document.querySelectorAll("#header-row th.sortable").forEach(th => {
+    const arrow = th.querySelector(".sort-arrow");
+    if (th.dataset.field === sortField) {
+      th.classList.add("sort-active");
+      arrow.textContent = sortDir === "asc" ? "▲" : "▼";
+    } else {
+      th.classList.remove("sort-active");
+      arrow.textContent = "";
+    }
+  });
+}
+
+// Tri : un clic sur un en-tête change le champ/l'ordre de tri (purement local, pas d'appel Grist)
+document.querySelectorAll("#header-row th.sortable").forEach(th => {
+  th.addEventListener("click", () => {
+    const field = th.dataset.field;
+    if (sortField === field) sortDir = sortDir === "asc" ? "desc" : "asc";
+    else { sortField = field; sortDir = "asc"; }
+    updateSortIndicators();
+    if (selectedBuilding) renderRoomsTable();
+  });
+});
+// Filtres : mis à jour en direct, purement local eux aussi
+document.querySelectorAll("#filter-row .filter-input").forEach(el => {
+  const evt = el.tagName === "SELECT" ? "change" : "input";
+  el.addEventListener(evt, () => {
+    filters[el.dataset.field] = el.value;
+    if (selectedBuilding) renderRoomsTable();
+  });
+});
+document.getElementById("btn-clear-filters").addEventListener("click", () => resetFiltersAndSort(true));
+updateSortIndicators();
+
 function renderRoomsTable() {
   const p = CONFIG.pieces;
-  const rows = allPieces
-    .filter(r => refId(r[p.batimentRef]) === selectedBuilding.id)
-    .sort((a, b) => String(a[p.numero] || "").localeCompare(String(b[p.numero] || ""), "fr", { numeric: true }));
+  const { all, filtered: rows } = getFilteredSortedRows();
 
   const tbody = document.getElementById("rows-body");
   const empty = document.getElementById("empty-table");
 
   document.getElementById("head-count").textContent =
-    rows.length ? `${rows.length} pièce(s) · ${fmtSurface(rows.reduce((s,r)=>s+(Number(r[p.surface])||0),0))} m²` : "";
+    rows.length ? `${rows.length} pièce(s) · ${fmtSurface(rows.reduce((s,r)=>s+(Number(getCellValue(r,"surface"))||0),0))} m²` : "";
 
   if (!rows.length) {
     tbody.innerHTML = "";
     empty.style.display = "block";
-    empty.textContent = "Aucune pièce saisie pour ce bâtiment. Cliquez sur « + Ajouter une ligne » pour commencer.";
+    empty.textContent = all.length
+      ? "Aucune pièce ne correspond aux filtres actuels."
+      : "Aucune pièce saisie pour ce bâtiment. Cliquez sur « + Ajouter une ligne » pour commencer.";
     return;
   }
   empty.style.display = "none";
 
   tbody.innerHTML = rows.map(r => {
     const isOp = r[p.natureOperationnelle] === true;
+    const dirty = pendingEdits[r.id] ? "dirty" : "";
     const saving = savingIds.has(r.id) ? "saving" : "";
+    const ov = pendingEdits[r.id] || {};
+    const val = (field, fallback) => (field in ov ? ov[field] : fallback);
     return `
-      <tr data-id="${r.id}" class="${saving}">
-        <td class="col-niveau"><input class="cell-input" data-field="${p.niveau}" type="text" value="${r[p.niveau] ?? ""}"></td>
-        <td class="col-numero"><input class="cell-input" data-field="${p.numero}" type="text" value="${r[p.numero] ?? ""}"></td>
-        <td class="col-nom"><input class="cell-input" data-field="${p.nom}" type="text" value="${(r[p.nom] ?? "").toString().replace(/"/g,'&quot;')}"></td>
-        <td><select class="cell-select" data-field="${p.typologie}" data-ref="true">${optionsHtml(typologies, CONFIG.typologie.label, CONFIG.typologie.id, refId(r[p.typologie]))}</select></td>
-        <td><select class="cell-select" data-field="${p.serviceRef}" data-ref="true">${optionsHtml(services, CONFIG.services.nom, CONFIG.services.id, refId(r[p.serviceRef]))}</select></td>
-        <td><input class="cell-input" data-field="${p.sousService}" type="text" value="${r[p.sousService] ?? ""}"></td>
-        <td class="col-surface"><input class="cell-input" data-field="${p.surface}" type="number" step="0.1" min="0" value="${r[p.surface] ?? ""}"></td>
-        <td><input class="cell-input" data-field="${p.nbOccupant}" type="number" step="1" min="0" value="${r[p.nbOccupant] ?? ""}"></td>
-        <td><input class="cell-input" data-field="${p.nbPdt}" type="number" step="1" min="0" value="${r[p.nbPdt] ?? ""}"></td>
-        <td><div class="cell-check-wrap"><input type="checkbox" data-field="${p.natureOperationnelle}" data-bool="true" ${isOp ? "checked" : ""}></div></td>
-        <td class="col-actions"><button class="row-del" title="Supprimer la pièce">✕</button></td>
+      <tr data-id="${r.id}" class="${dirty} ${saving}">
+        <td class="col-niveau"><input class="cell-input" data-field="${p.niveau}" type="text" value="${val(p.niveau, r[p.niveau] ?? "")}"></td>
+        <td class="col-numero"><input class="cell-input" data-field="${p.numero}" type="text" value="${val(p.numero, r[p.numero] ?? "")}"></td>
+        <td class="col-nom"><input class="cell-input" data-field="${p.nom}" type="text" value="${val(p.nom, (r[p.nom] ?? "").toString()).replace(/"/g,'&quot;')}"></td>
+        <td><select class="cell-select" data-field="${p.typologie}" data-ref="true">${optionsHtml(typologies, CONFIG.typologie.label, CONFIG.typologie.id, val(p.typologie, refId(r[p.typologie])))}</select></td>
+        <td><select class="cell-select" data-field="${p.serviceRef}" data-ref="true">${optionsHtml(services, CONFIG.services.nom, CONFIG.services.id, val(p.serviceRef, refId(r[p.serviceRef])))}</select></td>
+        <td><input class="cell-input" data-field="${p.sousService}" type="text" value="${val(p.sousService, r[p.sousService] ?? "")}"></td>
+        <td class="col-surface"><input class="cell-input" data-field="${p.surface}" type="number" step="0.1" min="0" value="${val(p.surface, r[p.surface] ?? "")}"></td>
+        <td><input class="cell-input" data-field="${p.nbOccupant}" type="number" step="1" min="0" value="${val(p.nbOccupant, r[p.nbOccupant] ?? "")}"></td>
+        <td><input class="cell-input" data-field="${p.nbPdt}" type="number" step="1" min="0" value="${val(p.nbPdt, r[p.nbPdt] ?? "")}"></td>
+        <td><div class="cell-check-wrap"><input type="checkbox" data-field="${p.natureOperationnelle}" data-bool="true" ${val(p.natureOperationnelle, isOp) ? "checked" : ""}></div></td>
+        <td class="col-actions">
+          <div class="row-actions">
+            <button class="row-save" title="Enregistrer cette ligne">💾</button>
+            <button class="row-del" title="Supprimer la pièce">✕</button>
+          </div>
+        </td>
       </tr>`;
   }).join("");
 
-  // Ecouteurs sur chaque cellule éditable
+  // Ecouteurs sur chaque cellule éditable : on stocke localement, on n'écrit PAS dans Grist à chaque champ
   tbody.querySelectorAll("tr").forEach(tr => {
     const rowId = Number(tr.dataset.id);
 
-    tr.querySelectorAll("input.cell-input, select.cell-select").forEach(el => {
-      const evt = el.tagName === "SELECT" || el.type === "number" ? "change" : "blur";
-      el.addEventListener(evt, () => saveField(rowId, el));
-      if (evt === "blur") {
-        el.addEventListener("keydown", (e) => { if (e.key === "Enter") el.blur(); });
-      }
+    tr.querySelectorAll("input.cell-input, select.cell-select, input[data-bool]").forEach(el => {
+      const evt = (el.tagName === "SELECT" || el.type === "number" || el.dataset.bool === "true") ? "change" : "input";
+      el.addEventListener(evt, () => markDirty(rowId, el));
     });
-    tr.querySelectorAll("input[data-bool]").forEach(el => {
-      el.addEventListener("change", () => saveField(rowId, el));
-    });
+    tr.querySelector(".row-save").addEventListener("click", () => saveRow(rowId));
     tr.querySelector(".row-del").addEventListener("click", () => deleteRow(rowId));
   });
 }
@@ -628,28 +838,89 @@ function readFieldValue(el) {
   return el.value.trim();
 }
 
-async function saveField(rowId, el) {
+/* Stocke la modification localement (pas d'écriture Grist ici) et marque la ligne comme "non enregistrée" */
+function markDirty(rowId, el) {
   const field = el.dataset.field;
   const value = readFieldValue(el);
+  if (!pendingEdits[rowId]) pendingEdits[rowId] = {};
+  pendingEdits[rowId][field] = value;
   const tr = el.closest("tr");
+  if (tr) tr.classList.add("dirty");
+  updateSaveAllButton();
+  updatePendingWarning();
+}
+
+function updateSaveAllButton() {
+  const count = Object.keys(pendingEdits).length;
+  const btn = document.getElementById("save-all-btn");
+  const badge = document.getElementById("save-all-badge");
+  btn.disabled = count === 0;
+  btn.classList.toggle("has-pending", count > 0);
+  badge.textContent = count > 0 ? count : "";
+}
+function updatePendingWarning() {
+  document.getElementById("pending-warning").classList.toggle("show", Object.keys(pendingEdits).length > 0);
+}
+
+/* Enregistre une seule ligne */
+async function saveRow(rowId) {
+  const changes = pendingEdits[rowId];
+  if (!changes) return;
+  const tr = document.querySelector(`tr[data-id="${rowId}"]`);
   savingIds.add(rowId);
   tr && tr.classList.add("saving");
   try {
     await grist.docApi.applyUserActions([
-      ["UpdateRecord", CONFIG.tables.pieces, rowId, { [field]: value }],
+      ["UpdateRecord", CONFIG.tables.pieces, rowId, changes],
     ]);
     const local = allPieces.find(r => r.id === rowId);
-    if (local) local[field] = value;
+    if (local) Object.assign(local, changes);
+    delete pendingEdits[rowId];
+    tr && tr.classList.remove("dirty");
+    updateSaveAllButton();
+    updatePendingWarning();
+    updateHeadCount();
   } catch (err) {
     console.error(err);
-    showToast("Erreur lors de l'enregistrement — vérifiez la valeur saisie.");
+    showToast("Erreur lors de l'enregistrement — vérifiez les valeurs saisies sur cette ligne.");
   } finally {
     savingIds.delete(rowId);
     tr && tr.classList.remove("saving");
-    // Met à jour le total de surface / compteur sans re-fetch complet
-    updateHeadCount();
   }
 }
+
+/* Enregistre toutes les lignes modifiées en une seule fois */
+async function saveAllPending() {
+  const rowIds = Object.keys(pendingEdits).map(Number);
+  if (!rowIds.length) return;
+  const btn = document.getElementById("save-all-btn");
+  btn.disabled = true;
+  rowIds.forEach(id => {
+    savingIds.add(id);
+    const tr = document.querySelector(`tr[data-id="${id}"]`);
+    if (tr) tr.classList.add("saving");
+  });
+  try {
+    const actions = rowIds.map(id => ["UpdateRecord", CONFIG.tables.pieces, id, pendingEdits[id]]);
+    await grist.docApi.applyUserActions(actions);
+    rowIds.forEach(id => {
+      const local = allPieces.find(r => r.id === id);
+      if (local) Object.assign(local, pendingEdits[id]);
+      delete pendingEdits[id];
+    });
+    showToast(`${rowIds.length} ligne(s) enregistrée(s).`);
+    await loadAll();
+  } catch (err) {
+    console.error(err);
+    showToast("Erreur lors de l'enregistrement groupé — vérifiez les valeurs saisies.");
+  } finally {
+    rowIds.forEach(id => savingIds.delete(id));
+    updateSaveAllButton();
+    updatePendingWarning();
+    renderRoomsTable();
+  }
+}
+document.getElementById("save-all-btn").addEventListener("click", saveAllPending);
 
 function updateHeadCount() {
   const p = CONFIG.pieces;
@@ -663,6 +934,9 @@ async function deleteRow(rowId) {
   try {
     await grist.docApi.applyUserActions([["RemoveRecord", CONFIG.tables.pieces, rowId]]);
     allPieces = allPieces.filter(r => r.id !== rowId);
+    delete pendingEdits[rowId];
+    updateSaveAllButton();
+    updatePendingWarning();
     renderRoomsTable();
     showToast("Pièce supprimée.");
   } catch (err) {
@@ -701,7 +975,15 @@ document.getElementById("btn-add-row").addEventListener("click", async () => {
    DEMARRAGE
    ============================================================ */
 grist.ready({ requiredAccess: "full" });
-grist.onRecords(() => loadAll());
+// On ignore les rechargements automatiques tant que des modifications locales
+// ne sont pas enregistrées, pour ne jamais écraser une saisie en cours.
+grist.onRecords(() => {
+  if (Object.keys(pendingEdits).length > 0) {
+    updatePendingWarning();
+    return;
+  }
+  loadAll();
+});
 loadAll();
 </script>
 </body>
