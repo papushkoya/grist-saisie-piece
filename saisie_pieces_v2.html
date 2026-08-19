@@ -1,0 +1,714 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Saisie de pièces</title>
+<script src="https://docs.getgrist.com/grist-plugin-api.js"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@500;600&display=swap" rel="stylesheet">
+
+<style>
+  :root{
+    --bg: #EEF1F0;
+    --ink: #16232B;
+    --ink-soft: #5E6C72;
+    --navy: #16232B;
+    --line: #DADFE0;
+    --card: #FFFFFF;
+    --accent: #E07B2E;
+    --teal: #2F7D6B;
+    --teal-soft: #E5F1EE;
+    --danger: #C0503D;
+    --danger-soft: #F7E9E6;
+    --radius: 10px;
+    --font-display: 'IBM Plex Sans', sans-serif;
+    --font-mono: 'IBM Plex Mono', monospace;
+  }
+  * { box-sizing: border-box; }
+  html, body { height:100%; margin:0; }
+  body{
+    font-family: var(--font-display);
+    background: var(--bg);
+    color: var(--ink);
+  }
+  ::selection{ background: var(--accent); color:#fff; }
+
+  #wrap{
+    max-width: 1500px;
+    margin: 0 auto;
+    padding: 24px 20px 60px;
+  }
+
+  #card{
+    background: var(--card);
+    border: 1px solid var(--line);
+    border-radius: 14px;
+    overflow: hidden;
+    box-shadow: 0 10px 30px rgba(22,35,43,0.06);
+  }
+
+  #head{
+    background: var(--navy);
+    color: #fff;
+    padding: 18px 24px;
+    display:flex;
+    align-items:baseline;
+    justify-content:space-between;
+  }
+  #head h1{ margin:0; font-size:18px; font-weight:600; letter-spacing:0.01em; }
+  #head .sub{ font-family: var(--font-mono); font-size:12px; color: rgba(255,255,255,0.55); }
+
+  /* ---------------- SELECTEUR BATIMENT ---------------- */
+  #building-block{
+    padding: 18px 24px;
+    border-bottom: 1px solid var(--line);
+  }
+  .label{
+    font-size: 11.5px;
+    font-weight:600;
+    text-transform:uppercase;
+    letter-spacing:0.05em;
+    color: var(--ink-soft);
+    margin-bottom:8px;
+    display:block;
+  }
+  #building-search-wrap{ position:relative; max-width: 460px; }
+  #building-search{
+    width:100%;
+    padding: 11px 14px;
+    border-radius: 8px;
+    border: 1.5px solid var(--line);
+    font-size: 14.5px;
+    font-family: var(--font-display);
+    outline:none;
+  }
+  #building-search:focus{ border-color: var(--accent); }
+  #building-suggestions{
+    position:absolute;
+    top: calc(100% + 4px);
+    left:0; right:0;
+    background:#fff;
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    box-shadow: 0 10px 24px rgba(22,35,43,0.12);
+    max-height: 220px;
+    overflow-y:auto;
+    display:none;
+    z-index: 20;
+  }
+  #building-suggestions.open{ display:block; }
+  .sugg-row{
+    padding: 9px 14px;
+    cursor:pointer;
+    border-bottom: 1px solid var(--line);
+  }
+  .sugg-row:last-child{ border-bottom:none; }
+  .sugg-row:hover{ background: var(--bg); }
+  .sugg-code{ font-family: var(--font-mono); font-size:11px; color: var(--accent); }
+  .sugg-name{ font-size: 13.5px; }
+
+  #building-selected{
+    display:none;
+    margin-top: 12px;
+    align-items:center;
+    justify-content:space-between;
+    background: var(--teal-soft);
+    border-radius: 8px;
+    padding: 10px 14px;
+  }
+  #building-selected .info{ font-size:13.5px; line-height:1.5; }
+  #building-selected .info b{ font-family: var(--font-mono); color: var(--teal); }
+  #building-selected button{
+    background:none; border:none; color: var(--ink-soft);
+    font-size: 12.5px; text-decoration:underline; cursor:pointer;
+  }
+
+  #building-notfound{
+    display:none;
+    margin-top: 12px;
+    font-size: 13.5px;
+    color: var(--ink-soft);
+  }
+  #building-notfound button{
+    margin-left: 6px;
+    background: var(--accent);
+    color:#fff;
+    border:none;
+    padding: 6px 12px;
+    border-radius: 6px;
+    font-size: 12.5px;
+    cursor:pointer;
+    font-weight:600;
+  }
+
+  #new-building-form{
+    display:none;
+    margin-top: 14px;
+    padding: 14px;
+    background: var(--bg);
+    border-radius: 8px;
+  }
+  #new-building-form .grid{
+    display:grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+  }
+  #new-building-form .full{ grid-column: 1 / -1; }
+
+  /* ---------------- TABLEAU EDITABLE ---------------- */
+  #table-block{
+    padding: 18px 24px 30px;
+    opacity: 0.4;
+    pointer-events: none;
+    transition: opacity 0.15s ease;
+  }
+  #table-block.active{ opacity:1; pointer-events:auto; }
+
+  .table-toolbar{
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    margin-bottom: 12px;
+    gap: 12px;
+    flex-wrap:wrap;
+  }
+  .table-toolbar .label{ margin-bottom:0; }
+  .tbtn{
+    padding: 8px 14px;
+    border-radius: 7px;
+    border: 1.5px solid var(--line);
+    background:#fff;
+    font-size: 13px;
+    font-weight:600;
+    cursor:pointer;
+    color: var(--ink);
+    white-space:nowrap;
+  }
+  .tbtn:hover{ border-color: var(--accent); }
+  .tbtn.primary{ background: var(--accent); border-color: var(--accent); color:#fff; }
+  .tbtn.primary:hover{ opacity:0.92; }
+
+  #table-scroll{
+    overflow-x: auto;
+    border: 1px solid var(--line);
+    border-radius: 10px;
+  }
+  table{
+    width:100%;
+    min-width: 1300px;
+    border-collapse: collapse;
+    font-size: 13px;
+    background:#fff;
+  }
+  thead th{
+    position: sticky;
+    top: 0;
+    text-align:left;
+    font-size: 10.5px;
+    text-transform:uppercase;
+    letter-spacing:0.04em;
+    color: var(--ink-soft);
+    padding: 9px 8px;
+    border-bottom: 1.5px solid var(--line);
+    background: var(--bg);
+    white-space:nowrap;
+    z-index: 5;
+  }
+  thead th.col-actions{ width: 40px; }
+  tbody td{
+    padding: 0;
+    border-bottom: 1px solid var(--line);
+    border-right: 1px solid #F1F3F3;
+    vertical-align: middle;
+  }
+  tbody tr:hover{ background: #FAFBFA; }
+  tbody tr.dirty td{ background: #FFF8ED; }
+  tbody tr.saving td{ opacity: 0.55; }
+
+  .cell-input, .cell-select{
+    width:100%;
+    min-width: 70px;
+    border:1.5px solid transparent;
+    background: transparent;
+    padding: 9px 8px;
+    font-family: var(--font-display);
+    font-size: 13px;
+    color: var(--ink);
+    outline:none;
+    border-radius: 5px;
+  }
+  input.cell-input[type="number"]{ text-align:right; font-family: var(--font-mono); }
+  .cell-input:focus, .cell-select:focus{
+    border-color: var(--accent);
+    background:#fff;
+    box-shadow: 0 0 0 3px rgba(224,123,46,0.12);
+  }
+  .cell-input:hover, .cell-select:hover{ border-color: var(--line); }
+  td.col-nom .cell-input{ min-width: 160px; font-weight:500; }
+  td.col-numero .cell-input{ min-width: 60px; }
+  td.col-niveau .cell-input{ min-width: 60px; }
+  td.col-surface .cell-input{ min-width: 80px; }
+
+  .cell-check-wrap{
+    display:flex; align-items:center; justify-content:center; padding: 9px 8px;
+  }
+  .cell-check-wrap input{ width:17px; height:17px; accent-color: var(--teal); cursor:pointer; }
+
+  .row-del{
+    width:100%;
+    border:none;
+    background:none;
+    color: var(--ink-soft);
+    font-size: 15px;
+    cursor:pointer;
+    padding: 9px 6px;
+    border-radius: 5px;
+  }
+  .row-del:hover{ background: var(--danger-soft); color: var(--danger); }
+
+  #empty-table{ padding: 30px 0; text-align:center; color: var(--ink-soft); font-size:13px; }
+
+  #toast{
+    position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%);
+    background: var(--navy); color:#fff; padding: 11px 20px; border-radius: 8px;
+    font-size: 13.5px; box-shadow: 0 8px 20px rgba(0,0,0,0.2); display:none; z-index:60;
+  }
+</style>
+</head>
+<body>
+
+<div id="wrap">
+  <div id="card">
+    <div id="head">
+      <h1>Saisie de pièces</h1>
+      <span class="sub" id="head-count"></span>
+    </div>
+
+    <!-- SELECTEUR BATIMENT -->
+    <div id="building-block">
+      <label class="label" for="building-search">Sélectionner un bâtiment</label>
+      <div id="building-search-wrap">
+        <input id="building-search" type="text" placeholder="Rechercher par code ou nom de bâtiment…" autocomplete="off" />
+        <div id="building-suggestions"></div>
+      </div>
+
+      <div id="building-selected">
+        <div class="info">
+          <b id="bs-code"></b> — <span id="bs-nom"></span><br/>
+          <span id="bs-adresse"></span>
+        </div>
+        <button id="bs-change">Changer de bâtiment</button>
+      </div>
+
+      <div id="building-notfound">
+        Aucun bâtiment trouvé pour « <span id="nf-query"></span> ».
+        <button id="nf-create">+ Créer ce bâtiment</button>
+      </div>
+
+      <div id="new-building-form">
+        <div class="grid">
+          <div class="field"><label>Code bâtiment</label><input id="nb-code" type="text" /></div>
+          <div class="field"><label>Nom du bâtiment</label><input id="nb-nom" type="text" /></div>
+          <div class="field"><label>Adresse</label><input id="nb-adresse" type="text" /></div>
+          <div class="field"><label>Ville</label><input id="nb-ville" type="text" /></div>
+          <div class="field"><label>Code postal</label><input id="nb-cp" type="text" /></div>
+        </div>
+        <div style="margin-top:12px; display:flex; gap:8px;">
+          <button class="tbtn primary" id="nb-save">Enregistrer le bâtiment</button>
+          <button class="tbtn" id="nb-cancel">Annuler</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- TABLEAU EDITABLE DES PIECES -->
+    <div id="table-block">
+      <div class="table-toolbar">
+        <label class="label" style="margin-bottom:0;">Pièces du bâtiment — cliquez dans une cellule pour modifier</label>
+        <button class="tbtn primary" id="btn-add-row">+ Ajouter une ligne</button>
+      </div>
+      <div id="table-scroll">
+        <table>
+          <thead>
+            <tr>
+              <th class="col-numero">N°</th>
+              <th class="col-nom">Nom</th>
+              <th class="col-niveau">Étage</th>
+              <th>Typologie</th>
+              <th style="text-align:right;">Surface (m²)</th>
+              <th>Service occupant</th>
+              <th>Sous-service</th>
+              <th style="text-align:right;">Nb occ.</th>
+              <th style="text-align:right;">Nb postes</th>
+              <th style="text-align:right;">Nb résidents</th>
+              <th style="text-align:right;">% résidents</th>
+              <th>N° catégorie</th>
+              <th style="text-align:center;">Opé.</th>
+              <th class="col-actions"></th>
+            </tr>
+          </thead>
+          <tbody id="rows-body"></tbody>
+        </table>
+      </div>
+      <div id="empty-table" style="display:none;">Aucune pièce saisie pour ce bâtiment. Cliquez sur « + Ajouter une ligne » pour commencer.</div>
+    </div>
+  </div>
+</div>
+
+<div id="toast"></div>
+
+<script>
+/* ============================================================
+   CONFIGURATION — noms de tables / colonnes réels de ton document
+   ============================================================ */
+const CONFIG = {
+  tables: {
+    inventaire: "BATIMENTS",
+    pieces: "PIECES",
+    services: "LIST_SERVICE",
+    typologie: "TYPOLOGIE",
+  },
+  inventaire: {
+    id: "id",
+    code: "code_batiment",
+    nom: "nom_batiment",
+    adresse: "adresse",
+    ville: "ville",
+    codePostal: "code_postal",
+    // champs calculés (lecture seule dans ce widget) :
+    sdp: "SDP", sub: "SUB", subRatio: "SUB_ratio", sba: "SBA",
+    subSpecifique: "SUB_specifique", autres: "autres",
+  },
+  pieces: {
+    id: "id",
+    batimentRef: "code_batiment",     // Reference -> Inventaire
+    niveau: "niveau",
+    numero: "numero_local",
+    nom: "nom_local",
+    typologie: "typologie_pie",
+    serviceRef: "service_occupant",   // Reference -> List_service
+    sousService: "sous_service",
+    surface: "surface",
+    nbOccupant: "nb_occupant",
+    nbPdt: "nb_pdt",
+    natureOperationnelle: "nature_operationnelle", // booléen (true/false)
+    numCat: "num_cat",
+    // classTypologie ("class_typologie") est une formule calculée automatiquement
+    // par Grist (= surface de la typologie choisie) : on ne l'écrit jamais.
+    nbResident: "nb_resident",
+    pourcentageResident: "pourcentage_resident",
+  },
+  services: {
+    id: "id_service",
+    nom: "nom_service",
+  },
+  typologie: {
+    id: "ID_typo",
+    label: "ID_typo",
+  },
+};
+
+/* ============================================================
+   ETAT
+   ============================================================ */
+let buildings = [];
+let allPieces = [];
+let services = [];
+let typologies = [];
+let selectedBuilding = null;   // objet bâtiment sélectionné
+let savingIds = new Set();     // ids de pièces en cours d'enregistrement (pour éviter les collisions d'affichage)
+
+function toRows(table) {
+  if (!table || !table.id) return [];
+  const rows = [];
+  for (let i = 0; i < table.id.length; i++) {
+    const row = { id: table.id[i] };
+    for (const key of Object.keys(table)) {
+      if (key === "id") continue;
+      row[key] = table[key][i];
+    }
+    rows.push(row);
+  }
+  return rows;
+}
+function refId(v) { return v && typeof v === "object" ? v.rowId : v; }
+function showToast(msg) {
+  const t = document.getElementById("toast");
+  t.textContent = msg;
+  t.style.display = "block";
+  clearTimeout(showToast._t);
+  showToast._t = setTimeout(() => (t.style.display = "none"), 2200);
+}
+function fmtSurface(v){ const n = Number(v)||0; return n.toLocaleString("fr-FR",{maximumFractionDigits:1}); }
+
+/* ============================================================
+   CHARGEMENT
+   ============================================================ */
+async function loadAll() {
+  const [inv, pcs, srv, typ] = await Promise.all([
+    grist.docApi.fetchTable(CONFIG.tables.inventaire),
+    grist.docApi.fetchTable(CONFIG.tables.pieces),
+    grist.docApi.fetchTable(CONFIG.tables.services),
+    grist.docApi.fetchTable(CONFIG.tables.typologie),
+  ]);
+  buildings = toRows(inv);
+  allPieces = toRows(pcs);
+  services = toRows(srv);
+  typologies = toRows(typ);
+  if (selectedBuilding) {
+    const fresh = buildings.find(b => b.id === selectedBuilding.id);
+    if (fresh) selectedBuilding = fresh;
+    renderRoomsTable();
+  }
+}
+
+/* ============================================================
+   RECHERCHE BATIMENT
+   ============================================================ */
+const searchInput = document.getElementById("building-search");
+const suggBox = document.getElementById("building-suggestions");
+
+searchInput.addEventListener("input", () => {
+  const q = searchInput.value.trim().toLowerCase();
+  document.getElementById("building-notfound").style.display = "none";
+  document.getElementById("new-building-form").style.display = "none";
+  if (!q) { suggBox.classList.remove("open"); return; }
+
+  const c = CONFIG.inventaire;
+  const matches = buildings.filter(b =>
+    String(b[c.code] || "").toLowerCase().includes(q) ||
+    String(b[c.nom] || "").toLowerCase().includes(q)
+  ).slice(0, 8);
+
+  if (matches.length) {
+    suggBox.innerHTML = matches.map(b => `
+      <div class="sugg-row" data-id="${b.id}">
+        <div class="sugg-code">${b[c.code] || ""}</div>
+        <div class="sugg-name">${b[c.nom] || "Sans nom"}</div>
+      </div>`).join("");
+    suggBox.classList.add("open");
+    suggBox.querySelectorAll(".sugg-row").forEach(el => {
+      el.addEventListener("click", () => selectBuilding(Number(el.dataset.id)));
+    });
+  } else {
+    suggBox.classList.remove("open");
+    document.getElementById("nf-query").textContent = searchInput.value.trim();
+    document.getElementById("building-notfound").style.display = "block";
+  }
+});
+
+document.getElementById("nf-create").addEventListener("click", () => {
+  document.getElementById("nb-code").value = searchInput.value.trim();
+  document.getElementById("new-building-form").style.display = "block";
+});
+document.getElementById("nb-cancel").addEventListener("click", () => {
+  document.getElementById("new-building-form").style.display = "none";
+});
+document.getElementById("nb-save").addEventListener("click", async () => {
+  const c = CONFIG.inventaire;
+  const code = document.getElementById("nb-code").value.trim();
+  const nom = document.getElementById("nb-nom").value.trim();
+  if (!code || !nom) { showToast("Code et nom du bâtiment sont requis."); return; }
+  try {
+    const res = await grist.docApi.applyUserActions([
+      ["AddRecord", CONFIG.tables.inventaire, null, {
+        [c.code]: code,
+        [c.nom]: nom,
+        [c.adresse]: document.getElementById("nb-adresse").value.trim(),
+        [c.ville]: document.getElementById("nb-ville").value.trim(),
+        [c.codePostal]: document.getElementById("nb-cp").value.trim(),
+      }],
+    ]);
+    await loadAll();
+    const newId = res.retValues[0];
+    selectBuilding(newId);
+    document.getElementById("new-building-form").style.display = "none";
+    showToast("Bâtiment créé.");
+  } catch (err) {
+    console.error(err);
+    showToast("Erreur lors de la création du bâtiment.");
+  }
+});
+
+function selectBuilding(id) {
+  const c = CONFIG.inventaire;
+  selectedBuilding = buildings.find(b => b.id === id);
+  suggBox.classList.remove("open");
+  document.getElementById("building-notfound").style.display = "none";
+  searchInput.value = "";
+
+  document.getElementById("building-selected").style.display = "flex";
+  document.getElementById("bs-code").textContent = selectedBuilding[c.code] || "";
+  document.getElementById("bs-nom").textContent = selectedBuilding[c.nom] || "";
+  document.getElementById("bs-adresse").textContent =
+    [selectedBuilding[c.adresse], selectedBuilding[c.codePostal], selectedBuilding[c.ville]].filter(Boolean).join(", ");
+
+  document.getElementById("table-block").classList.add("active");
+  renderRoomsTable();
+}
+document.getElementById("bs-change").addEventListener("click", () => {
+  selectedBuilding = null;
+  document.getElementById("building-selected").style.display = "none";
+  document.getElementById("table-block").classList.remove("active");
+  document.getElementById("rows-body").innerHTML = "";
+  document.getElementById("empty-table").style.display = "block";
+  document.getElementById("empty-table").textContent = "Sélectionnez un bâtiment pour voir ses pièces.";
+  document.getElementById("head-count").textContent = "";
+});
+
+/* ============================================================
+   TABLEAU EDITABLE DES PIECES
+   ============================================================ */
+function optionsHtml(list, labelKey, idKey, currentId) {
+  return `<option value="">—</option>` + list.map(item => {
+    const val = item[idKey];
+    const sel = currentId != null && Number(currentId) === Number(val) ? "selected" : "";
+    return `<option value="${val}" ${sel}>${item[labelKey] || ""}</option>`;
+  }).join("");
+}
+
+function renderRoomsTable() {
+  const p = CONFIG.pieces;
+  const rows = allPieces
+    .filter(r => refId(r[p.batimentRef]) === selectedBuilding.id)
+    .sort((a, b) => String(a[p.numero] || "").localeCompare(String(b[p.numero] || ""), "fr", { numeric: true }));
+
+  const tbody = document.getElementById("rows-body");
+  const empty = document.getElementById("empty-table");
+
+  document.getElementById("head-count").textContent =
+    rows.length ? `${rows.length} pièce(s) · ${fmtSurface(rows.reduce((s,r)=>s+(Number(r[p.surface])||0),0))} m²` : "";
+
+  if (!rows.length) {
+    tbody.innerHTML = "";
+    empty.style.display = "block";
+    empty.textContent = "Aucune pièce saisie pour ce bâtiment. Cliquez sur « + Ajouter une ligne » pour commencer.";
+    return;
+  }
+  empty.style.display = "none";
+
+  tbody.innerHTML = rows.map(r => {
+    const isOp = r[p.natureOperationnelle] === true;
+    const saving = savingIds.has(r.id) ? "saving" : "";
+    return `
+      <tr data-id="${r.id}" class="${saving}">
+        <td class="col-numero"><input class="cell-input" data-field="${p.numero}" type="text" value="${r[p.numero] ?? ""}"></td>
+        <td class="col-nom"><input class="cell-input" data-field="${p.nom}" type="text" value="${(r[p.nom] ?? "").toString().replace(/"/g,'&quot;')}"></td>
+        <td class="col-niveau"><input class="cell-input" data-field="${p.niveau}" type="text" value="${r[p.niveau] ?? ""}"></td>
+        <td><select class="cell-select" data-field="${p.typologie}" data-ref="true">${optionsHtml(typologies, CONFIG.typologie.label, CONFIG.typologie.id, refId(r[p.typologie]))}</select></td>
+        <td class="col-surface"><input class="cell-input" data-field="${p.surface}" type="number" step="0.1" min="0" value="${r[p.surface] ?? ""}"></td>
+        <td><select class="cell-select" data-field="${p.serviceRef}" data-ref="true">${optionsHtml(services, CONFIG.services.nom, CONFIG.services.id, refId(r[p.serviceRef]))}</select></td>
+        <td><input class="cell-input" data-field="${p.sousService}" type="text" value="${r[p.sousService] ?? ""}"></td>
+        <td><input class="cell-input" data-field="${p.nbOccupant}" type="number" step="1" min="0" value="${r[p.nbOccupant] ?? ""}"></td>
+        <td><input class="cell-input" data-field="${p.nbPdt}" type="number" step="1" min="0" value="${r[p.nbPdt] ?? ""}"></td>
+        <td><input class="cell-input" data-field="${p.nbResident}" type="number" step="1" min="0" value="${r[p.nbResident] ?? ""}"></td>
+        <td><input class="cell-input" data-field="${p.pourcentageResident}" type="number" step="0.1" min="0" max="100" value="${r[p.pourcentageResident] ?? ""}"></td>
+        <td><input class="cell-input" data-field="${p.numCat}" type="text" value="${r[p.numCat] ?? ""}"></td>
+        <td><div class="cell-check-wrap"><input type="checkbox" data-field="${p.natureOperationnelle}" data-bool="true" ${isOp ? "checked" : ""}></div></td>
+        <td class="col-actions"><button class="row-del" title="Supprimer la pièce">✕</button></td>
+      </tr>`;
+  }).join("");
+
+  // Ecouteurs sur chaque cellule éditable
+  tbody.querySelectorAll("tr").forEach(tr => {
+    const rowId = Number(tr.dataset.id);
+
+    tr.querySelectorAll("input.cell-input, select.cell-select").forEach(el => {
+      const evt = el.tagName === "SELECT" || el.type === "number" ? "change" : "blur";
+      el.addEventListener(evt, () => saveField(rowId, el));
+      if (evt === "blur") {
+        el.addEventListener("keydown", (e) => { if (e.key === "Enter") el.blur(); });
+      }
+    });
+    tr.querySelectorAll("input[data-bool]").forEach(el => {
+      el.addEventListener("change", () => saveField(rowId, el));
+    });
+    tr.querySelector(".row-del").addEventListener("click", () => deleteRow(rowId));
+  });
+}
+
+function readFieldValue(el) {
+  if (el.dataset.bool === "true") return el.checked;
+  if (el.dataset.ref === "true") return el.value ? Number(el.value) : null;
+  if (el.type === "number") return el.value === "" ? null : Number(el.value);
+  return el.value.trim();
+}
+
+async function saveField(rowId, el) {
+  const field = el.dataset.field;
+  const value = readFieldValue(el);
+  const tr = el.closest("tr");
+  savingIds.add(rowId);
+  tr && tr.classList.add("saving");
+  try {
+    await grist.docApi.applyUserActions([
+      ["UpdateRecord", CONFIG.tables.pieces, rowId, { [field]: value }],
+    ]);
+    const local = allPieces.find(r => r.id === rowId);
+    if (local) local[field] = value;
+  } catch (err) {
+    console.error(err);
+    showToast("Erreur lors de l'enregistrement — vérifiez la valeur saisie.");
+  } finally {
+    savingIds.delete(rowId);
+    tr && tr.classList.remove("saving");
+    // Met à jour le total de surface / compteur sans re-fetch complet
+    updateHeadCount();
+  }
+}
+
+function updateHeadCount() {
+  const p = CONFIG.pieces;
+  const rows = allPieces.filter(r => refId(r[p.batimentRef]) === selectedBuilding.id);
+  document.getElementById("head-count").textContent =
+    rows.length ? `${rows.length} pièce(s) · ${fmtSurface(rows.reduce((s,r)=>s+(Number(r[p.surface])||0),0))} m²` : "";
+}
+
+async function deleteRow(rowId) {
+  if (!confirm("Supprimer définitivement cette pièce ?")) return;
+  try {
+    await grist.docApi.applyUserActions([["RemoveRecord", CONFIG.tables.pieces, rowId]]);
+    allPieces = allPieces.filter(r => r.id !== rowId);
+    renderRoomsTable();
+    showToast("Pièce supprimée.");
+  } catch (err) {
+    console.error(err);
+    showToast("Erreur lors de la suppression.");
+  }
+}
+
+document.getElementById("btn-add-row").addEventListener("click", async () => {
+  if (!selectedBuilding) return;
+  const p = CONFIG.pieces;
+  try {
+    const res = await grist.docApi.applyUserActions([
+      ["AddRecord", CONFIG.tables.pieces, null, {
+        [p.batimentRef]: selectedBuilding.id,
+        [p.nom]: "Nouvelle pièce",
+      }],
+    ]);
+    await loadAll();
+    const newId = res.retValues[0];
+    renderRoomsTable();
+    // Focus la première cellule éditable de la nouvelle ligne
+    const tr = document.querySelector(`tr[data-id="${newId}"]`);
+    if (tr) {
+      const firstInput = tr.querySelector("input.cell-input");
+      if (firstInput) { firstInput.focus(); firstInput.select(); }
+      tr.scrollIntoView({ block: "nearest" });
+    }
+  } catch (err) {
+    console.error(err);
+    showToast("Erreur lors de l'ajout de la ligne.");
+  }
+});
+
+/* ============================================================
+   DEMARRAGE
+   ============================================================ */
+grist.ready({ requiredAccess: "full" });
+grist.onRecords(() => loadAll());
+loadAll();
+</script>
+</body>
+</html>
